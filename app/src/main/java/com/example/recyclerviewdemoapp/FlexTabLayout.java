@@ -1,0 +1,320 @@
+package com.example.recyclerviewdemoapp;
+
+import android.content.Context;
+import android.database.Observable;
+import android.util.AttributeSet;
+import android.util.Log;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.widget.LinearLayout;
+
+import androidx.annotation.NonNull;
+import androidx.core.view.ViewCompat;
+import androidx.recyclerview.widget.RecyclerView;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import static android.view.View.MeasureSpec.AT_MOST;
+
+/**
+ * 1.横向布局
+ * 2.当横向铺满之后，垂直布局
+ */
+
+public class FlexTabLayout extends ViewGroup {
+    public static final String TAG = "FlexTabLayout";
+    public static final int NO_POSITION = -1;
+    public static final long NO_ID = -1;
+    final ChildViewManager childViewManager = new ChildViewManager();
+    FlexTabLayout.Adapter mAdapter;
+    //横向间距，不包括头尾
+    private static int HORIZONTAL_SPACE = 100;
+    //纵向间距，不包括头尾
+    private static int VERTICAL_SPACE = 100;
+
+    public Adapter getAdapter() {
+        return mAdapter;
+    }
+
+    public ChildViewManager getChildViewManager() {
+        return childViewManager;
+    }
+
+    public void setAdapter(Adapter adapter) {
+        this.mAdapter = adapter;
+    }
+
+    public FlexTabLayout(Context context) {
+        super(context);
+    }
+
+    public FlexTabLayout(Context context, AttributeSet attrs) {
+        super(context, attrs);
+    }
+
+    public FlexTabLayout(Context context, AttributeSet attrs, int defStyleAttr) {
+        super(context, attrs, defStyleAttr);
+    }
+
+    /**
+     * @param widthMeasureSpec
+     * @param heightMeasureSpec 1.特殊处理parent为wrap_content,child为match_parent的模式，此时child的高度为其minHeight。
+     */
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        final int widthMode = MeasureSpec.getMode(widthMeasureSpec);
+        final int heightMode = MeasureSpec.getMode(heightMeasureSpec);
+        final int widthSize = MeasureSpec.getSize(widthMeasureSpec);
+        final int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+        int width = widthSize;
+        int height = heightSize;
+        int itemCount = mAdapter == null ? 0 : mAdapter.getItemCount();
+        int largestChildHeight = Integer.MIN_VALUE;
+        int mTotalWidth = 0;
+        int mTotalHeight = 0;
+        for (int i = 0; i < itemCount; i++) {
+            View child = childViewManager.getChildAt(i);
+            LayoutParams childLayoutParams = (LayoutParams) child.getLayoutParams();
+            if (heightMode == AT_MOST) {
+                if (itemCount == 0) {
+                    //wrap_content且无child
+                    height = RecyclerView.LayoutManager.chooseSize(heightMeasureSpec,
+                            getPaddingTop() + getPaddingBottom(),
+                            ViewCompat.getMinimumHeight(this));
+                } else {
+                    //根据child的高度决定
+
+                }
+            }
+            final int usedWidth = mTotalWidth;
+            final int heightUsed = mTotalHeight;
+            measureChildWithMargins(child, widthMeasureSpec, 0,
+                    heightMeasureSpec, 0);
+            final int childWidth = child.getMeasuredWidth();
+            final int childHeight = child.getMeasuredHeight();
+            if (i > 0) {
+                if (mTotalWidth > widthSize) {
+
+                }
+            }
+            mTotalWidth += childWidth + childLayoutParams.leftMargin + childLayoutParams.rightMargin + HORIZONTAL_SPACE;
+            //测量宽度
+            if (widthMode == MeasureSpec.EXACTLY) {
+            } else if (widthMode == AT_MOST) {
+                //确定出parent的最大宽度
+                //如果child累计的宽度已经超过了at_most的最大宽度
+                if (mTotalWidth > widthSize) {
+                }
+            }
+
+            //测量高度
+        }
+        if (widthMode == AT_MOST && mTotalWidth < widthSize) {
+            width = mTotalWidth;
+        }
+
+        if (heightMode == AT_MOST) {
+            height = -1;
+        }
+
+        setMeasuredDimension(width, height);
+
+    }
+
+    public final class ChildViewManager {
+        private Map<Integer, View> childList = new HashMap<>();
+
+        public View getChildAt(int position) {
+            if (mAdapter == null) {
+                throw new IllegalStateException("Adapter can not be null");
+            }
+            View child = childList.get(position);
+            if (child == null) {
+                child = createNewView(position);
+                childList.put(position, child);
+            }
+            return child;
+        }
+
+        private View createNewView(int position) {
+            View child = mAdapter.onCreateItemHolder(FlexTabLayout.this, position).itemView;
+            final ViewGroup.LayoutParams lp = child.getLayoutParams();
+            if (lp == null) {
+                LayoutParams layoutParams = (LayoutParams) generateDefaultLayoutParams();
+                child.setLayoutParams(layoutParams);
+            } else {
+                child.setLayoutParams(generateLayoutParams(lp));
+            }
+            return child;
+        }
+
+        public void cleat() {
+            childList.clear();
+        }
+    }
+
+    @Override
+    protected ViewGroup.LayoutParams generateDefaultLayoutParams() {
+        return new LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+    }
+
+    @Override
+    protected ViewGroup.LayoutParams generateLayoutParams(ViewGroup.LayoutParams lp) {
+        if (lp instanceof MarginLayoutParams) {
+            return new LayoutParams((MarginLayoutParams) lp);
+        }
+        return new LayoutParams(lp);
+    }
+
+    protected void measureChildWithMargins(View child,
+                                           int parentWidthMeasureSpec, int widthUsed,
+                                           int parentHeightMeasureSpec, int heightUsed) {
+        final LayoutParams lp = (LayoutParams) child.getLayoutParams();
+
+        final int childWidthMeasureSpec = getChildMeasureSpec(parentWidthMeasureSpec,
+                getPaddingLeft() + getPaddingLeft() + lp.leftMargin + lp.rightMargin
+                        + widthUsed, lp.width);
+        final int childHeightMeasureSpec = getChildMeasureSpec(parentHeightMeasureSpec,
+                getPaddingBottom() + getPaddingTop() + lp.topMargin + lp.bottomMargin
+                        + heightUsed, lp.height);
+
+        child.measure(childWidthMeasureSpec, childHeightMeasureSpec);
+    }
+
+    @Override
+    protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        int childCount = mAdapter == null ? 0 : mAdapter.getItemCount();
+        int rowIndex = 0;  //摆放的行数
+        Map<Integer, Integer> maxHeightInRow = new HashMap<>(); //一行中最大的高度
+        int nextRowStart = 0;//下一行的摆放起点
+        int width = getMeasuredWidth();
+        int usedHeight = 0; //布局child已经使用的高度
+        //行最大可用宽度
+        int rowMaxAvailableSpace = width - getPaddingLeft() - getPaddingRight();
+        int availableSpace = rowMaxAvailableSpace;
+        int childLeft = getPaddingLeft();  //下一个child的左起点
+        int childTop = getPaddingTop();  //下一个child的top
+        for (int i = 0; i < childCount; i++) {
+            final View child = childViewManager.getChildAt(i);
+            int childHeight = child.getMeasuredHeight();
+            int childWidth = child.getMeasuredWidth();
+            LayoutParams lp = (LayoutParams) child.getLayoutParams();
+            //第一行的第一个child不需要考虑HORIZONTAL_SPACE
+            if (availableSpace == rowMaxAvailableSpace) {
+                childLeft += lp.leftMargin;
+            } else {
+                childLeft += lp.leftMargin + HORIZONTAL_SPACE;
+            }
+            //计算出每一行的最大高度
+            Integer maxHeight = maxHeightInRow.get(rowIndex);
+            if (maxHeight == null) {
+                maxHeightInRow.put(rowIndex, childHeight);
+            } else {
+                maxHeightInRow.put(rowIndex, Math.max(childHeight, maxHeight));
+            }
+            //布局该child需要的宽度
+            int childNeedWidth;
+            //布局该child使用的宽度
+            int childUsedWidth;
+            if (availableSpace == rowMaxAvailableSpace) {
+                childNeedWidth = childWidth + lp.leftMargin + lp.rightMargin;
+            } else {
+                childNeedWidth = childWidth + lp.leftMargin + lp.rightMargin + HORIZONTAL_SPACE;
+            }
+            //当前行剩余的空间是否放的下这个child,否则执行换行操作
+            if (childNeedWidth > availableSpace) {
+                childTop += maxHeightInRow.get(rowIndex) + VERTICAL_SPACE;
+                rowIndex++;
+                availableSpace = rowMaxAvailableSpace;
+                childLeft = getPaddingLeft();
+                usedHeight += childTop;
+                Log.i(TAG, "onLayout left:" + childLeft + "---childTop:" + childTop + "---position:" + i);
+            }
+            child.layout(childLeft, childTop, childLeft + childWidth, childTop + childHeight);
+            addView(child);
+            childUsedWidth = childNeedWidth;
+            childLeft += lp.rightMargin + childWidth;
+            availableSpace -= childUsedWidth;
+        }
+        getMeasuredHeight();
+
+
+    }
+
+    public void addView(View child) {
+        addView(child, -1);
+    }
+
+    public void addView(View child, int index) {
+        addViewInt(child, index, false);
+    }
+
+    private void addViewInt(View child, int index, boolean b) {
+        attachViewToParent(child, index, child.getLayoutParams());
+    }
+
+    public static class LayoutParams extends ViewGroup.MarginLayoutParams {
+
+        public LayoutParams(Context c, AttributeSet attrs) {
+            super(c, attrs);
+        }
+
+        public LayoutParams(int width, int height) {
+            super(width, height);
+        }
+
+        public LayoutParams(MarginLayoutParams source) {
+            super(source);
+        }
+
+        public LayoutParams(ViewGroup.LayoutParams source) {
+            super(source);
+        }
+    }
+
+    public abstract static class Adapter<FH extends FlexTabLayout.FlexItemHolder> {
+        private final FlexTabLayout.AdapterDataObservable mObservable = new FlexTabLayout.AdapterDataObservable();
+
+        public final void notifyDataSetChanged() {
+            mObservable.notifyChanged();
+        }
+
+        @NonNull
+        public abstract FH onCreateItemHolder(@NonNull ViewGroup parent, int position);
+
+        public abstract int getItemCount();
+    }
+
+    public abstract static class FlexItemHolder {
+        @NonNull
+        public final View itemView;
+        int mPosition = NO_POSITION;
+        int mOldPosition = NO_POSITION;
+        long mItemId = NO_ID;
+
+        protected FlexItemHolder(@NonNull View itemView) {
+            this.itemView = itemView;
+        }
+    }
+
+    static class AdapterDataObservable extends Observable<RecyclerView.AdapterDataObserver> {
+        public boolean hasObservers() {
+            return !mObservers.isEmpty();
+        }
+
+        public void notifyChanged() {
+            // since onChanged() is implemented by the app, it could do anything, including
+            // removing itself from {@link mObservers} - and that could cause problems if
+            // an iterator is used on the ArrayList {@link mObservers}.
+            // to avoid such problems, just march thru the list in the reverse order.
+            for (int i = mObservers.size() - 1; i >= 0; i--) {
+                mObservers.get(i).onChanged();
+            }
+        }
+    }
+}
