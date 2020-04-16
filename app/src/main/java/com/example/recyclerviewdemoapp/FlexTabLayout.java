@@ -113,17 +113,17 @@ public class FlexTabLayout extends ViewGroup {
             int availableWidth = rowMaxWidth;
             int totalChildNeedWidth = 0;
             for (int i = 0; i < itemCount; i++) {
-                View child = childViewManager.getChildAt(0);
+                View child = childViewManager.getChildAt(i);
                 int childHeight = child.getMeasuredHeight();
                 LayoutParams params = (LayoutParams) child.getLayoutParams();
                 int childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin;
-                totalChildNeedWidth += childNeedWidth + i == 0 ? 0 : HORIZONTAL_SPACE;
+                totalChildNeedWidth += (childNeedWidth + (i == 0 ? 0 : HORIZONTAL_SPACE));
                 //计算出行高
                 lastRowMaxHeight = Math.max(childHeight + params.topMargin + params.bottomMargin, lastRowMaxHeight);
 
                 if (totalChildNeedWidth > availableWidth) {
                     //换行
-                    totalRowHeight += lastRowMaxHeight + VERTICAL_SPACE;
+                    totalRowHeight += (lastRowMaxHeight + VERTICAL_SPACE);
                     availableWidth = rowMaxWidth;
                     totalChildNeedWidth = childNeedWidth;
                 }
@@ -153,8 +153,8 @@ public class FlexTabLayout extends ViewGroup {
             return child;
         }
 
-        private View createNewView(int position) {
-            View child = mAdapter.onCreateItemHolder(FlexTabLayout.this, position).itemView;
+        private View createNewView(final int position) {
+            final View child = mAdapter.onCreateItemHolder(FlexTabLayout.this, position).itemView;
             final ViewGroup.LayoutParams lp = child.getLayoutParams();
             if (lp == null) {
                 LayoutParams layoutParams = (LayoutParams) generateDefaultLayoutParams();

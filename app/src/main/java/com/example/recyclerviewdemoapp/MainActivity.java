@@ -13,6 +13,7 @@ import android.util.AttributeSet;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -22,7 +23,7 @@ import com.example.recyclerviewdemoapp.databinding.ActivityMainBinding;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
     private ActivityMainBinding viewBinding;
 
     @Override
@@ -47,32 +48,37 @@ public class MainActivity extends AppCompatActivity {
             @NonNull
             @Override
             public FlexTabLayout.FlexItemHolder onCreateItemHolder(@NonNull ViewGroup parent, final int position) {
-                final View itemView;
                 if (position == getItemCount() - 1) {
-                    itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item_plus, parent, false);
-                    return new ItemHolder(itemView);
+                    return new ItemHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item_plus, parent, false));
                 }
-                itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item, parent, false);
-//                itemView.post(new Runnable() {
-//                    @Override
-//                    public void run() {
-//                        itemView.setOnClickListener(new View.OnClickListener() {
-//                            @Override
-//                            public void onClick(View v) {
-//                                onItemClicked(v, position);
-//                            }
-//                        });
-//                    }
-//                });
-                return new ItemHolder(itemView);
+                final View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item, parent, false);
+                new Handler().post(new Runnable() {
+                    @Override
+                    public void run() {
+                        view.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                Toast.makeText(MainActivity.this, "position:", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                        boolean listeners = view.hasOnClickListeners();
+                    }
+                });
+
+                return new ItemHolder(view);
 
             }
 
             @Override
             public int getItemCount() {
-                return 1;
+                return 3;
             }
         });
+
+    }
+
+    @Override
+    public void onClick(View v) {
 
     }
 
