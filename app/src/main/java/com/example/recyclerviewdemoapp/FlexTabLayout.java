@@ -22,8 +22,10 @@ import java.util.Map;
 import static android.view.View.MeasureSpec.AT_MOST;
 
 /**
- * 1.横向布局
- * 2.当横向铺满之后，垂直布局
+ * 1.宽高均支持wrap_content
+ * 2.当child的总宽高超过parent拿到的最大限定值时，使用该限定值(超出范围的child将不可见)
+ * 3.不支持滑动
+ * 4.兼容parent的padding和child的margin
  */
 
 public class FlexTabLayout extends ViewGroup {
@@ -67,7 +69,9 @@ public class FlexTabLayout extends ViewGroup {
 
     /**
      * @param widthMeasureSpec
-     * @param heightMeasureSpec 1.特殊处理parent为wrap_content,child为match_parent的模式，此时child的高度为其minHeight。
+     * @param heightMeasureSpec 1.高度如何支持wrap_content？
+     *                          在测量阶段，我们需要确定出parent的高度，所以必须模拟布局操作，然后根据child的数量和布局结果确定出parent的高度
+     *                          优化点：可以在测量阶段记录child的位置，然后在布局阶段直接使用这些位置，可以避免冗余的计算流程
      */
 
     @Override
@@ -93,6 +97,7 @@ public class FlexTabLayout extends ViewGroup {
             final int childHeight = child.getMeasuredHeight();
             lastRowMaxHeight = Math.max(childHeight + params.topMargin + params.bottomMargin, lastRowMaxHeight);
             if (i == 0) {
+                //每一行的第一个child忽略HORIZONTAL_SPACE
                 mTotalWidth += childWidth + params.leftMargin + params.rightMargin;
             } else {
                 mTotalWidth += childWidth + params.leftMargin + params.rightMargin + HORIZONTAL_SPACE;
@@ -125,7 +130,7 @@ public class FlexTabLayout extends ViewGroup {
                 lastRowMaxHeight = Math.max(childHeight + params.topMargin + params.bottomMargin, lastRowMaxHeight);
 
                 if (childNeedWidth > availableWidth) {
-                    //换行
+                    //换行    第一行忽略VERTICAL_SPACE
                     totalRowHeight += (lastRowMaxHeight + VERTICAL_SPACE);
                     availableWidth = rowMaxWidth;
                     childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin;

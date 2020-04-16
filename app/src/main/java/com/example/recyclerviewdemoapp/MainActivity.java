@@ -26,21 +26,17 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding viewBinding;
     private List<TestBean> testBeanList = new ArrayList<>();
+    private static final int LEN = 10;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         viewBinding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(viewBinding.getRoot());
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < LEN; i++) {
             testBeanList.add(new TestBean(false, "" + i));
         }
-        viewBinding.flexTabLayout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "position:", Toast.LENGTH_SHORT).show();
-            }
-        });
+
         viewBinding.flexTabLayout.setAdapter(new FlexTabLayout.Adapter() {
 
             @Override
