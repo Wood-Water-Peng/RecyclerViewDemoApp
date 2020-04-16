@@ -15,6 +15,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.recyclerviewdemoapp.databinding.ActivityMainBinding;
 
@@ -31,18 +32,45 @@ public class MainActivity extends AppCompatActivity {
         setContentView(viewBinding.getRoot());
 //        viewBinding.activityMainRecycler.setAdapter(new ItemAdapter(initData()));
 //        viewBinding.activityMainRecycler.setLayoutManager(new LinearLayoutManager(this));
-
+        viewBinding.flexTabLayout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(MainActivity.this, "position:", Toast.LENGTH_SHORT).show();
+            }
+        });
         viewBinding.flexTabLayout.setAdapter(new FlexTabLayout.Adapter() {
+            @Override
+            public void onItemClicked(View itemView, int position) {
+                Toast.makeText(MainActivity.this, "position:" + position, Toast.LENGTH_SHORT).show();
+            }
+
             @NonNull
             @Override
-            public FlexTabLayout.FlexItemHolder onCreateItemHolder(@NonNull ViewGroup parent, int position) {
-                return new ItemHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item, parent, false));
+            public FlexTabLayout.FlexItemHolder onCreateItemHolder(@NonNull ViewGroup parent, final int position) {
+                final View itemView;
+                if (position == getItemCount() - 1) {
+                    itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item_plus, parent, false);
+                    return new ItemHolder(itemView);
+                }
+                itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item, parent, false);
+//                itemView.post(new Runnable() {
+//                    @Override
+//                    public void run() {
+//                        itemView.setOnClickListener(new View.OnClickListener() {
+//                            @Override
+//                            public void onClick(View v) {
+//                                onItemClicked(v, position);
+//                            }
+//                        });
+//                    }
+//                });
+                return new ItemHolder(itemView);
 
             }
 
             @Override
             public int getItemCount() {
-                return 5;
+                return 1;
             }
         });
 
