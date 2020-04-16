@@ -23,7 +23,7 @@ import com.example.recyclerviewdemoapp.databinding.ActivityMainBinding;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener {
+public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding viewBinding;
 
     @Override
@@ -40,9 +40,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
         });
         viewBinding.flexTabLayout.setAdapter(new FlexTabLayout.Adapter() {
+            private int itemCount = 3;
+
             @Override
             public void onItemClicked(View itemView, int position) {
-                Toast.makeText(MainActivity.this, "position:" + position, Toast.LENGTH_SHORT).show();
+                if (position == getItemCount() - 1) {
+                    itemCount++;
+                    viewBinding.flexTabLayout.removeAllViews();
+                    viewBinding.flexTabLayout.childViewManager.clear();
+                    notifyDataSetChanged();
+                }
             }
 
             @NonNull
@@ -51,36 +58,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (position == getItemCount() - 1) {
                     return new ItemHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item_plus, parent, false));
                 }
-                final View view = LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item, parent, false);
-                new Handler().post(new Runnable() {
-                    @Override
-                    public void run() {
-                        view.setOnClickListener(new View.OnClickListener() {
-                            @Override
-                            public void onClick(View v) {
-                                Toast.makeText(MainActivity.this, "position:", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                        boolean listeners = view.hasOnClickListeners();
-                    }
-                });
-
+                final View view = new NormalItemView(parent.getContext());
+                TextView textView=view.findViewById(R.id.normal_item_tv);
+                textView.setText(""+position);
                 return new ItemHolder(view);
 
             }
 
             @Override
             public int getItemCount() {
-                return 3;
+                return itemCount;
             }
         });
 
     }
 
-    @Override
-    public void onClick(View v) {
-
-    }
 
     class ItemHolder extends FlexTabLayout.FlexItemHolder {
 

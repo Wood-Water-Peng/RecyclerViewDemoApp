@@ -10,6 +10,7 @@ import android.view.ViewTreeObserver;
 import android.widget.LinearLayout;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -31,6 +32,7 @@ public class FlexTabLayout extends ViewGroup {
     public static final long NO_ID = -1;
     final ChildViewManager childViewManager = new ChildViewManager();
     FlexTabLayout.Adapter mAdapter;
+    private final FlexTabViewDataObserver mObserver = new FlexTabViewDataObserver();
     //横向间距，不包括头尾
     private static int HORIZONTAL_SPACE = 100;
     //纵向间距，不包括头尾
@@ -45,7 +47,10 @@ public class FlexTabLayout extends ViewGroup {
     }
 
     public void setAdapter(Adapter adapter) {
-        this.mAdapter = adapter;
+        if (adapter != null) {
+            this.mAdapter = adapter;
+            mAdapter.registerAdapterDataObserver(mObserver);
+        }
     }
 
     public FlexTabLayout(Context context) {
@@ -111,23 +116,21 @@ public class FlexTabLayout extends ViewGroup {
             //此时child需要占用的总宽度已经超过了父类最大的限制宽度，那么需要确定行数
             int rowMaxWidth = widthSize - getPaddingLeft() - getPaddingRight();
             int availableWidth = rowMaxWidth;
-            int totalChildNeedWidth = 0;
             for (int i = 0; i < itemCount; i++) {
                 View child = childViewManager.getChildAt(i);
                 int childHeight = child.getMeasuredHeight();
                 LayoutParams params = (LayoutParams) child.getLayoutParams();
-                int childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin;
-                totalChildNeedWidth += (childNeedWidth + (i == 0 ? 0 : HORIZONTAL_SPACE));
+                int childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin + (i == 0 ? 0 : HORIZONTAL_SPACE);
                 //计算出行高
                 lastRowMaxHeight = Math.max(childHeight + params.topMargin + params.bottomMargin, lastRowMaxHeight);
 
-                if (totalChildNeedWidth > availableWidth) {
+                if (childNeedWidth > availableWidth) {
                     //换行
                     totalRowHeight += (lastRowMaxHeight + VERTICAL_SPACE);
                     availableWidth = rowMaxWidth;
-                    totalChildNeedWidth = childNeedWidth;
+                    childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin;
                 }
-                availableWidth -= totalChildNeedWidth;
+                availableWidth -= childNeedWidth;
             }
             totalRowHeight += lastRowMaxHeight;
             height = totalRowHeight + getPaddingTop() + getPaddingBottom();
@@ -150,6 +153,13 @@ public class FlexTabLayout extends ViewGroup {
                 child = createNewView(position);
                 childList.put(position, child);
             }
+            child.setOnClickListener(new View.OnClickListener() {
+
+                @Override
+                public void onClick(View v) {
+                    mAdapter.onItemClicked(childList.get(position), position);
+                }
+            });
             return child;
         }
 
@@ -162,10 +172,11 @@ public class FlexTabLayout extends ViewGroup {
             } else {
                 child.setLayoutParams(generateLayoutParams(lp));
             }
+
             return child;
         }
 
-        public void cleat() {
+        public void clear() {
             childList.clear();
         }
     }
@@ -231,8 +242,6 @@ public class FlexTabLayout extends ViewGroup {
             }
             //布局该child需要的宽度
             int childNeedWidth;
-            //布局该child使用的宽度
-            int childUsedWidth;
             if (availableSpace == rowMaxAvailableSpace) {
                 childNeedWidth = childWidth + lp.leftMargin + lp.rightMargin;
             } else {
@@ -242,32 +251,22 @@ public class FlexTabLayout extends ViewGroup {
             if (childNeedWidth > availableSpace) {
                 childTop += maxHeightInRow.get(rowIndex) + VERTICAL_SPACE;
                 rowIndex++;
+                childNeedWidth = childWidth + lp.leftMargin + lp.rightMargin;
                 availableSpace = rowMaxAvailableSpace;
                 childLeft = getPaddingLeft();
                 usedHeight += childTop;
                 Log.i(TAG, "onLayout left:" + childLeft + "---childTop:" + childTop + "---position:" + i);
             }
             child.layout(childLeft, childTop, childLeft + childWidth, childTop + childHeight);
-            final int finalI = i;
-            addView(child);
-            childUsedWidth = childNeedWidth;
+            if (!child.isAttachedToWindow()) {
+                addView(child, i);
+            }
             childLeft += lp.rightMargin + childWidth;
-            availableSpace -= childUsedWidth;
+            availableSpace -= childNeedWidth;
         }
 
     }
 
-    public void addView(View child) {
-        addView(child, -1);
-    }
-
-    public void addView(View child, int index) {
-        addViewInt(child, index, false);
-    }
-
-    private void addViewInt(View child, int index, boolean b) {
-        attachViewToParent(child, index, child.getLayoutParams());
-    }
 
     public static class LayoutParams extends ViewGroup.MarginLayoutParams {
 
@@ -301,6 +300,10 @@ public class FlexTabLayout extends ViewGroup {
         public abstract FH onCreateItemHolder(@NonNull ViewGroup parent, int position);
 
         public abstract int getItemCount();
+
+        public void registerAdapterDataObserver(FlexTabViewDataObserver observer) {
+            mObservable.registerObserver(observer);
+        }
     }
 
     public abstract static class FlexItemHolder {
@@ -315,7 +318,7 @@ public class FlexTabLayout extends ViewGroup {
         }
     }
 
-    static class AdapterDataObservable extends Observable<RecyclerView.AdapterDataObserver> {
+    static class AdapterDataObservable extends Observable<AdapterDataObserver> {
         public boolean hasObservers() {
             return !mObservers.isEmpty();
         }
@@ -328,6 +331,20 @@ public class FlexTabLayout extends ViewGroup {
             for (int i = mObservers.size() - 1; i >= 0; i--) {
                 mObservers.get(i).onChanged();
             }
+        }
+    }
+
+
+    public abstract static class AdapterDataObserver {
+        public void onChanged() {
+            // Do nothing
+        }
+    }
+
+    private class FlexTabViewDataObserver extends AdapterDataObserver {
+        @Override
+        public void onChanged() {
+            requestLayout();
         }
     }
 }
