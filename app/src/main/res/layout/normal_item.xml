@@ -5,7 +5,6 @@
         android:id="@+id/normal_item_tv"
         android:layout_width="60dp"
         android:layout_height="50dp"
-        android:background="#4412ff34"
-        android:gravity="center"
-         />
+        android:background="@drawable/normal_item_selector"
+        android:gravity="center" />
 </merge>

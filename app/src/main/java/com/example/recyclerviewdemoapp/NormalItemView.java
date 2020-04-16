@@ -39,4 +39,5 @@ public class NormalItemView extends FrameLayout {
     protected void attachViewToParent(View child, int index, ViewGroup.LayoutParams params) {
         super.attachViewToParent(child, index, params);
     }
+
 }

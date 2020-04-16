@@ -25,14 +25,16 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding viewBinding;
+    private List<TestBean> testBeanList = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         viewBinding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(viewBinding.getRoot());
-//        viewBinding.activityMainRecycler.setAdapter(new ItemAdapter(initData()));
-//        viewBinding.activityMainRecycler.setLayoutManager(new LinearLayoutManager(this));
+        for (int i = 0; i < 10; i++) {
+            testBeanList.add(new TestBean(false, "" + i));
+        }
         viewBinding.flexTabLayout.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -40,15 +42,20 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         viewBinding.flexTabLayout.setAdapter(new FlexTabLayout.Adapter() {
-            private int itemCount = 3;
 
             @Override
             public void onItemClicked(View itemView, int position) {
                 if (position == getItemCount() - 1) {
-                    itemCount++;
+                    testBeanList.add(new TestBean(false, "" + position));
                     viewBinding.flexTabLayout.removeAllViews();
                     viewBinding.flexTabLayout.childViewManager.clear();
                     notifyDataSetChanged();
+                } else {
+                    if (itemView instanceof NormalItemView) {
+                        NormalItemView normalItemView = (NormalItemView) itemView;
+                        normalItemView.setSelected(!testBeanList.get(position).isSelected());
+                        testBeanList.get(position).setSelected(normalItemView.isSelected());
+                    }
                 }
             }
 
@@ -58,16 +65,17 @@ public class MainActivity extends AppCompatActivity {
                 if (position == getItemCount() - 1) {
                     return new ItemHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item_plus, parent, false));
                 }
-                final View view = new NormalItemView(parent.getContext());
-                TextView textView=view.findViewById(R.id.normal_item_tv);
-                textView.setText(""+position);
+                final NormalItemView view = new NormalItemView(parent.getContext());
+                TextView textView = view.findViewById(R.id.normal_item_tv);
+                textView.setText(testBeanList.get(position).getText());
+                view.setSelected(testBeanList.get(position).isSelected());
                 return new ItemHolder(view);
 
             }
 
             @Override
             public int getItemCount() {
-                return itemCount;
+                return testBeanList.size();
             }
         });
 
@@ -75,6 +83,13 @@ public class MainActivity extends AppCompatActivity {
 
 
     class ItemHolder extends FlexTabLayout.FlexItemHolder {
+        private boolean selected;
+
+        public ItemHolder(@NonNull View itemView, boolean selected) {
+            super(itemView);
+            this.selected = selected;
+        }
+
 
         protected ItemHolder(@NonNull View itemView) {
             super(itemView);
@@ -162,6 +177,32 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void bindData(String data, int position) {
             tv.setText(data + "_" + position);
+        }
+    }
+
+    private class TestBean {
+        private boolean selected = false;
+        private String text;
+
+        public TestBean(boolean selected, String text) {
+            this.selected = selected;
+            this.text = text;
+        }
+
+        public boolean isSelected() {
+            return selected;
+        }
+
+        public void setSelected(boolean selected) {
+            this.selected = selected;
+        }
+
+        public String getText() {
+            return text;
+        }
+
+        public void setText(String text) {
+            this.text = text;
         }
     }
 }
