@@ -7,9 +7,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Context;
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -24,6 +26,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
+    private static final String TAG = "MainActivity";
     private ActivityMainBinding viewBinding;
     private List<TestBean> testBeanList = new ArrayList<>();
     private static final int LEN = 10;
@@ -43,9 +46,10 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClicked(View itemView, int position) {
                 if (position == getItemCount() - 1) {
                     testBeanList.add(new TestBean(false, "" + position));
-                    viewBinding.flexTabLayout.removeAllViews();
-                    viewBinding.flexTabLayout.childViewManager.clear();
-                    notifyDataSetChanged();
+//                    viewBinding.flexTabLayout.removeAllViews();
+//                    viewBinding.flexTabLayout.childViewManager.clear();
+//                    notifyDataSetChanged();
+                    notifyItemInserted(position);
                 } else {
                     if (itemView instanceof NormalItemView) {
                         NormalItemView normalItemView = (NormalItemView) itemView;
@@ -65,6 +69,10 @@ public class MainActivity extends AppCompatActivity {
                 TextView textView = view.findViewById(R.id.normal_item_tv);
                 textView.setText(testBeanList.get(position).getText());
                 view.setSelected(testBeanList.get(position).isSelected());
+                Log.i(TAG, "onCreateItemHolder position:" + position);
+                if (position == 2) {
+                    view.setVisibility(View.GONE);
+                }
                 return new ItemHolder(view);
 
             }
@@ -74,7 +82,12 @@ public class MainActivity extends AppCompatActivity {
                 return testBeanList.size();
             }
         });
-
+        viewBinding.button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                startActivity(new Intent(MainActivity.this,RecyclerViewActivity.class));
+            }
+        });
     }
 
 
