@@ -11,11 +11,16 @@ import android.widget.LinearLayout;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.Px;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.ViewInfoStore;
 
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static android.view.View.MeasureSpec.AT_MOST;
@@ -59,6 +64,18 @@ public class FlexTabLayout extends ViewGroup {
         return childViewManager;
     }
 
+    ItemAnimator mItemAnimator = new DefaultItemAnimator();
+
+    private Runnable mItemAnimatorRunner = new Runnable() {
+        @Override
+        public void run() {
+            if (mItemAnimator != null) {
+                mItemAnimator.runPendingAnimations();
+            }
+            mPostedAnimatorRunner = false;
+        }
+    };
+
     public void setAdapter(Adapter adapter) {
         if (adapter != null) {
             this.mAdapter = adapter;
@@ -79,6 +96,45 @@ public class FlexTabLayout extends ViewGroup {
         initAdapterManager();
         initChildrenHelper();
     }
+
+    boolean mPostedAnimatorRunner = false;
+
+    @Override
+    protected void onDetachedFromWindow() {
+        super.onDetachedFromWindow();
+        removeCallbacks(mItemAnimatorRunner);
+    }
+
+    void postAnimationRunner() {
+        if (!mPostedAnimatorRunner && mIsAttached) {
+            ViewCompat.postOnAnimation(this, mItemAnimatorRunner);
+            mPostedAnimatorRunner = true;
+        }
+    }
+
+    void animateAppearance(@NonNull FlexItemHolder itemHolder,
+                           @Nullable ItemAnimator.ItemHolderInfo preLayoutInfo, @NonNull ItemAnimator.ItemHolderInfo postLayoutInfo) {
+        if (mItemAnimator.animateAppearance(itemHolder, preLayoutInfo, postLayoutInfo)) {
+            postAnimationRunner();
+        }
+    }
+
+    /**
+     * The callback to convert view info diffs into animations.
+     */
+    private final ViewInfoStore.ProcessCallback mViewInfoProcessCallback =
+            new ViewInfoStore.ProcessCallback() {
+
+                @Override
+                public void processDisappeared(FlexItemHolder viewHolder, @NonNull ItemAnimator.ItemHolderInfo preInfo, @Nullable ItemAnimator.ItemHolderInfo postInfo) {
+
+                }
+
+                @Override
+                public void processAppeared(FlexItemHolder viewHolder, @Nullable ItemAnimator.ItemHolderInfo preInfo, ItemAnimator.ItemHolderInfo postInfo) {
+                    animateAppearance(viewHolder, preInfo, postInfo);
+                }
+            };
 
     /**
      * Returns the position in the group of the specified child view.
@@ -141,6 +197,10 @@ public class FlexTabLayout extends ViewGroup {
 
     ChildHelper mChildHelper;
 
+    /**
+     * @param positionStart
+     * @param itemCount     当有新数据插入后，插入位置之后的position位置都要+1
+     */
     void offsetPositionRecordsForInsert(int positionStart, int itemCount) {
         final int childCount = mChildHelper.getUnfilteredChildCount();
         for (int i = 0; i < childCount; i++) {
@@ -150,7 +210,7 @@ public class FlexTabLayout extends ViewGroup {
             }
         }
 
-//        requestLayout();
+        requestLayout();
     }
 
     private void initAdapterManager() {
@@ -208,92 +268,99 @@ public class FlexTabLayout extends ViewGroup {
         //先测量一下自己
         defaultOnMeasure(widthMeasureSpec, heightMeasureSpec);
         setMeasureSpecs(widthMeasureSpec, heightMeasureSpec);
-        final boolean measureSpecModeIsExactly =
-                mWidthMode == MeasureSpec.EXACTLY && mHeightMode == MeasureSpec.EXACTLY;
-        if (measureSpecModeIsExactly || mAdapter == null) {
-            return;
+//        final boolean measureSpecModeIsExactly =
+//                mWidthMode == MeasureSpec.EXACTLY && mHeightMode == MeasureSpec.EXACTLY;
+//        if (measureSpecModeIsExactly || mAdapter == null) {
+//            return;
+//        }
+//        //测量并布局child
+//        final int widthSize = MeasureSpec.getSize(widthMeasureSpec);
+//        final int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+//        int width = widthSize;
+//        int height = heightSize;
+//        int itemCount = mAdapter == null ? 0 : mAdapter.getItemCount();
+//        int mTotalWidth = 0;
+//        int lastRowMaxHeight = 0; //当前行的最大高度
+//        int totalRowHeight = 0;//所有的行高度，每行最高的总和
+//        for (int i = 0; i < itemCount; i++) {
+//            View child = childViewManager.getChildAt(i);
+//            if (child.getVisibility() == View.GONE) {
+//                continue;
+//            }
+//            LayoutParams params = (LayoutParams) child.getLayoutParams();
+//            measureChildWithMargins(child, widthMeasureSpec, 0,
+//                    heightMeasureSpec, 0);
+//            final int childWidth = child.getMeasuredWidth();
+//            final int childHeight = child.getMeasuredHeight();
+//            lastRowMaxHeight = Math.max(childHeight + params.topMargin + params.bottomMargin, lastRowMaxHeight);
+//            if (i == 0) {
+//                //每一行的第一个child忽略HORIZONTAL_SPACE
+//                mTotalWidth += childWidth + params.leftMargin + params.rightMargin;
+//            } else {
+//                mTotalWidth += childWidth + params.leftMargin + params.rightMargin + HORIZONTAL_SPACE;
+//            }
+//
+//        }
+//        //1.测量宽度
+//        //2.确定高度
+//        if (mWidthMode == AT_MOST) {
+//            //重新定义parent的宽度
+//            if (mTotalWidth < widthSize - getPaddingLeft() - getPaddingRight()) {
+//                //只有一行
+//                width = mTotalWidth + getPaddingRight() + getPaddingLeft();
+//                totalRowHeight = lastRowMaxHeight;
+//            } else {
+//                //多行，此时parent的宽度为其限制的最大宽度
+//            }
+//
+//        }
+//
+//        //此时parent的宽度已经确定，模拟布局
+//        int rowMaxWidth = widthSize - getPaddingLeft() - getPaddingRight();
+//        int availableWidth = rowMaxWidth;
+//        for (int i = 0; i < itemCount; i++) {
+//            View child = childViewManager.getChildAt(i);
+//            int childHeight = child.getMeasuredHeight();
+//            LayoutParams params = (LayoutParams) child.getLayoutParams();
+//            int childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin + (i == 0 ? 0 : HORIZONTAL_SPACE);
+//            //计算出行高
+//            lastRowMaxHeight = Math.max(childHeight + params.topMargin + params.bottomMargin, lastRowMaxHeight);
+//
+//            if (childNeedWidth > availableWidth) {
+//                //换行    第一行忽略VERTICAL_SPACE
+//                totalRowHeight += (lastRowMaxHeight + VERTICAL_SPACE);
+//                availableWidth = rowMaxWidth;
+//                childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin;
+//            }
+//            availableWidth -= childNeedWidth;
+//        }
+//        totalRowHeight += lastRowMaxHeight;
+//
+//        //parent的高度为wrap_content,需要通过模拟layout来确定他的最大高度
+//        if (mHeightMode == AT_MOST) {
+//            //重新定义parent的高度
+//            //此时child需要占用的总宽度已经超过了父类最大的限制宽度，那么需要确定行数
+//            height = totalRowHeight + getPaddingTop() + getPaddingBottom();
+//        }
+//
+//
+//        //在此之前，已经完成了对child的测量和布局
+//        if (mState.mLayoutStep == State.STEP_START) {
+//            dispatchLayoutStep1();
+//        }
+//        dispatchLayoutStep2();
+//        setMeasuredDimensionFromChildren(widthMeasureSpec, heightMeasureSpec);
+////        setMeasuredDimension(width, height);
+//        if (shouldMeasureTwice()) {
+//
+//        }
+
+        if (mAdapter != null) {
+            mState.mItemCount = mAdapter.getItemCount();
+        } else {
+            mState.mItemCount = 0;
         }
-        //测量并布局child
-        final int widthSize = MeasureSpec.getSize(widthMeasureSpec);
-        final int heightSize = MeasureSpec.getSize(heightMeasureSpec);
-        int width = widthSize;
-        int height = heightSize;
-        int itemCount = mAdapter == null ? 0 : mAdapter.getItemCount();
-        int mTotalWidth = 0;
-        int lastRowMaxHeight = 0; //当前行的最大高度
-        int totalRowHeight = 0;//所有的行高度，每行最高的总和
-        for (int i = 0; i < itemCount; i++) {
-            View child = childViewManager.getChildAt(i);
-            if (child.getVisibility() == View.GONE) {
-                continue;
-            }
-            LayoutParams params = (LayoutParams) child.getLayoutParams();
-            measureChildWithMargins(child, widthMeasureSpec, 0,
-                    heightMeasureSpec, 0);
-            final int childWidth = child.getMeasuredWidth();
-            final int childHeight = child.getMeasuredHeight();
-            lastRowMaxHeight = Math.max(childHeight + params.topMargin + params.bottomMargin, lastRowMaxHeight);
-            if (i == 0) {
-                //每一行的第一个child忽略HORIZONTAL_SPACE
-                mTotalWidth += childWidth + params.leftMargin + params.rightMargin;
-            } else {
-                mTotalWidth += childWidth + params.leftMargin + params.rightMargin + HORIZONTAL_SPACE;
-            }
 
-        }
-        //1.测量宽度
-        //2.确定高度
-        if (mWidthMode == AT_MOST) {
-            //重新定义parent的宽度
-            if (mTotalWidth < widthSize - getPaddingLeft() - getPaddingRight()) {
-                //只有一行
-                width = mTotalWidth + getPaddingRight() + getPaddingLeft();
-                totalRowHeight = lastRowMaxHeight;
-            } else {
-                //多行，此时parent的宽度为其限制的最大宽度
-            }
-
-        }
-
-        //此时parent的宽度已经确定，模拟布局
-        int rowMaxWidth = widthSize - getPaddingLeft() - getPaddingRight();
-        int availableWidth = rowMaxWidth;
-        for (int i = 0; i < itemCount; i++) {
-            View child = childViewManager.getChildAt(i);
-            int childHeight = child.getMeasuredHeight();
-            LayoutParams params = (LayoutParams) child.getLayoutParams();
-            int childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin + (i == 0 ? 0 : HORIZONTAL_SPACE);
-            //计算出行高
-            lastRowMaxHeight = Math.max(childHeight + params.topMargin + params.bottomMargin, lastRowMaxHeight);
-
-            if (childNeedWidth > availableWidth) {
-                //换行    第一行忽略VERTICAL_SPACE
-                totalRowHeight += (lastRowMaxHeight + VERTICAL_SPACE);
-                availableWidth = rowMaxWidth;
-                childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin;
-            }
-            availableWidth -= childNeedWidth;
-        }
-        totalRowHeight += lastRowMaxHeight;
-
-        //parent的高度为wrap_content,需要通过模拟layout来确定他的最大高度
-        if (mHeightMode == AT_MOST) {
-            //重新定义parent的高度
-            //此时child需要占用的总宽度已经超过了父类最大的限制宽度，那么需要确定行数
-            height = totalRowHeight + getPaddingTop() + getPaddingBottom();
-        }
-
-
-        //在此之前，已经完成了对child的测量和布局
-        if (mState.mLayoutStep == State.STEP_START) {
-            dispatchLayoutStep1();
-        }
-        dispatchLayoutStep2();
-        setMeasuredDimensionFromChildren(widthMeasureSpec, heightMeasureSpec);
-//        setMeasuredDimension(width, height);
-        if (shouldMeasureTwice()) {
-
-        }
 
     }
 
@@ -302,8 +369,8 @@ public class FlexTabLayout extends ViewGroup {
     /**
      * @param widthSpec  parent
      * @param heightSpec parent
-     *
-     * parent的测量宽度不能超过widthSpec的最大值
+     *                   <p>
+     *                   parent的测量宽度不能超过widthSpec的最大值
      */
     void setMeasuredDimensionFromChildren(int widthSpec, int heightSpec) {
         final int count = getChildCount();
@@ -421,64 +488,105 @@ public class FlexTabLayout extends ViewGroup {
 
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        int childCount = mAdapter == null ? 0 : mAdapter.getItemCount();
-        int rowIndex = 0;  //摆放的行数
-        Map<Integer, Integer> maxHeightInRow = new HashMap<>(); //一行中最大的高度
-        int width = getMeasuredWidth();
-        //行最大可用宽度
-        int rowMaxAvailableSpace = width - getPaddingLeft() - getPaddingRight();
-        int availableSpace = rowMaxAvailableSpace;
-        int childLeft = getPaddingLeft();  //下一个child的左起点
-        int childTop = getPaddingTop();  //下一个child的top
-        for (int i = 0; i < childCount; i++) {
-            final View child = childViewManager.getChildAt(i);
-            if (child.getVisibility() == View.GONE) {
-                if (!child.isAttachedToWindow()) {
-                    addView(child, i);
-                }
-                continue;
-            }
-            int childHeight = child.getMeasuredHeight();
-            int childWidth = child.getMeasuredWidth();
-            LayoutParams lp = (LayoutParams) child.getLayoutParams();
-            //第一行的第一个child不需要考虑HORIZONTAL_SPACE
-            if (availableSpace == rowMaxAvailableSpace) {
-                childLeft += lp.leftMargin;
-            } else {
-                childLeft += lp.leftMargin + HORIZONTAL_SPACE;
-            }
-            //计算出每一行的最大高度
-            Integer maxHeight = maxHeightInRow.get(rowIndex);
-            if (maxHeight == null) {
-                maxHeightInRow.put(rowIndex, childHeight);
-            } else {
-                maxHeightInRow.put(rowIndex, Math.max(childHeight, maxHeight));
-            }
-            //布局该child需要的宽度
-            int childNeedWidth;
-            if (availableSpace == rowMaxAvailableSpace) {
-                childNeedWidth = childWidth + lp.leftMargin + lp.rightMargin;
-            } else {
-                childNeedWidth = childWidth + lp.leftMargin + lp.rightMargin + HORIZONTAL_SPACE;
-            }
-            //当前行剩余的空间是否放的下这个child,否则执行换行操作
-            if (childNeedWidth > availableSpace) {
-                childTop += maxHeightInRow.get(rowIndex) + VERTICAL_SPACE;
-                rowIndex++;
-                childNeedWidth = childWidth + lp.leftMargin + lp.rightMargin;
-                availableSpace = rowMaxAvailableSpace;
-                childLeft = getPaddingLeft();
-            }
-            child.layout(childLeft, childTop, childLeft + childWidth, childTop + childHeight);
-            if (!child.isAttachedToWindow()) {
-                addView(child, i);
-            }
-            childLeft += lp.rightMargin + childWidth;
-            availableSpace -= childNeedWidth;
-        }
+        dispatchLayout();
+//        int childCount = mAdapter == null ? 0 : mAdapter.getItemCount();
+//        int rowIndex = 0;  //摆放的行数
+//        Map<Integer, Integer> maxHeightInRow = new HashMap<>(); //一行中最大的高度
+//        int width = getMeasuredWidth();
+//        //行最大可用宽度
+//        int rowMaxAvailableSpace = width - getPaddingLeft() - getPaddingRight();
+//        int availableSpace = rowMaxAvailableSpace;
+//        int childLeft = getPaddingLeft();  //下一个child的左起点
+//        int childTop = getPaddingTop();  //下一个child的top
+//        for (int i = 0; i < childCount; i++) {
+//            final View child = childViewManager.getChildAt(i);
+//            if (child.getVisibility() == View.GONE) {
+//                if (!child.isAttachedToWindow()) {
+//                    addView(child, i);
+//                }
+//                continue;
+//            }
+//            int childHeight = child.getMeasuredHeight();
+//            int childWidth = child.getMeasuredWidth();
+//            LayoutParams lp = (LayoutParams) child.getLayoutParams();
+//            //第一行的第一个child不需要考虑HORIZONTAL_SPACE
+//            if (availableSpace == rowMaxAvailableSpace) {
+//                childLeft += lp.leftMargin;
+//            } else {
+//                childLeft += lp.leftMargin + HORIZONTAL_SPACE;
+//            }
+//            //计算出每一行的最大高度
+//            Integer maxHeight = maxHeightInRow.get(rowIndex);
+//            if (maxHeight == null) {
+//                maxHeightInRow.put(rowIndex, childHeight);
+//            } else {
+//                maxHeightInRow.put(rowIndex, Math.max(childHeight, maxHeight));
+//            }
+//            //布局该child需要的宽度
+//            int childNeedWidth;
+//            if (availableSpace == rowMaxAvailableSpace) {
+//                childNeedWidth = childWidth + lp.leftMargin + lp.rightMargin;
+//            } else {
+//                childNeedWidth = childWidth + lp.leftMargin + lp.rightMargin + HORIZONTAL_SPACE;
+//            }
+//            //当前行剩余的空间是否放的下这个child,否则执行换行操作
+//            if (childNeedWidth > availableSpace) {
+//                childTop += maxHeightInRow.get(rowIndex) + VERTICAL_SPACE;
+//                rowIndex++;
+//                childNeedWidth = childWidth + lp.leftMargin + lp.rightMargin;
+//                availableSpace = rowMaxAvailableSpace;
+//                childLeft = getPaddingLeft();
+//            }
+//            child.layout(childLeft, childTop, childLeft + childWidth, childTop + childHeight);
+//            if (!child.isAttachedToWindow()) {
+//                addView(child, i);
+//            }
+//            childLeft += lp.rightMargin + childWidth;
+//            availableSpace -= childNeedWidth;
+//        }
         mFirstLayoutComplete = true;
+
     }
 
+    private void dispatchLayout() {
+        if (mAdapter == null) {
+            Log.e(TAG, "No adapter attached; skipping layout");
+            // leave the state in START
+            return;
+        }
+        mState.mIsMeasuring = false;
+        if (mState.mLayoutStep == State.STEP_START) {
+            dispatchLayoutStep1();
+            dispatchLayoutStep2();
+        }
+        dispatchLayoutStep3();
+    }
+
+    /**
+     * True after an event occurs that signals that the entire data set has changed. In that case,
+     * we cannot run any animations since we don't know what happened until layout.
+     * <p>
+     * Attached items are invalid until next layout, at which point layout will animate/replace
+     * items as necessary, building up content from the (effectively) new adapter from scratch.
+     * <p>
+     * Cached items must be discarded when setting this to true, so that the cache may be freely
+     * used by prefetching until the next layout occurs.
+     *
+     * @see #processDataSetCompletelyChanged(boolean)
+     */
+    boolean mDataSetHasChangedAfterLayout = false;
+
+    /**
+     * Consumes adapter updates and calculates which type of animations we want to run.
+     * Called in onMeasure and dispatchLayout.
+     * <p>
+     * This method may process only the pre-layout state of updates or all of them.
+     */
+    private void processAdapterUpdatesAndSetAnimationFlags() {
+        mState.mRunSimpleAnimations = mFirstLayoutComplete
+                && mItemAnimator != null
+                && mDataSetHasChangedAfterLayout;
+    }
 
     /**
      * The first step of a layout where we;
@@ -488,6 +596,7 @@ public class FlexTabLayout extends ViewGroup {
         mState.assertLayoutStep(State.STEP_START);
         mState.mIsMeasuring = false;
         mState.mItemCount = mAdapter.getItemCount();
+        processAdapterUpdatesAndSetAnimationFlags();
         mState.mLayoutStep = State.STEP_LAYOUT;
     }
 
@@ -501,6 +610,44 @@ public class FlexTabLayout extends ViewGroup {
         mState.assertLayoutStep(State.STEP_LAYOUT);
         mState.mItemCount = mAdapter.getItemCount();
         onLayoutChildren();
+    }
+
+    /**
+     * Keeps data about views to be used for animations
+     */
+    final ViewInfoStore mViewInfoStore = new ViewInfoStore();
+
+    /**
+     * The final step of the layout where we save the information about views for animations,
+     * trigger animations and do any necessary cleanup.
+     */
+    private void dispatchLayoutStep3() {
+        mState.assertLayoutStep(State.STEP_ANIMATIONS);
+        mState.mLayoutStep = State.STEP_START;
+        if (mState.mRunSimpleAnimations) {
+            for (int i = mChildHelper.getChildCount() - 1; i >= 0; i--) {
+                FlexItemHolder holder = getChildViewHolderInt(mChildHelper.getChildAt(i));
+                final ItemAnimator.ItemHolderInfo animationInfo = mItemAnimator
+                        .recordPostLayoutInformation(mState, holder);
+                long key = getChangedHolderKey(holder);
+                FlexItemHolder oldChangeViewHolder = mViewInfoStore.getFromOldChangeHolders(key);
+                if (oldChangeViewHolder != null) {
+                    //做位移动画
+                } else {
+                    mViewInfoStore.addToPostLayout(holder, animationInfo);
+                }
+            }
+            // Step 4: Process view info lists and trigger animations
+            mViewInfoStore.process(mViewInfoProcessCallback);
+        }
+    }
+
+    /**
+     * Returns a unique key to be used while handling change animations.
+     * It might be child's position or stable id depending on the adapter type.
+     */
+    long getChangedHolderKey(FlexItemHolder holder) {
+        return holder.mPosition;
     }
 
     /**
@@ -616,6 +763,16 @@ public class FlexTabLayout extends ViewGroup {
          * by the adapter. mPosition and mItemId are consistent.
          */
         static final int FLAG_UPDATE = 1 << 1;
+        /**
+         * This ViewHolder points at data that represents an item previously removed from the
+         * data set. Its view may still be used for things like outgoing animations.
+         */
+        static final int FLAG_REMOVED = 1 << 3;
+
+        /**
+         * Used by ItemAnimator when a ViewHolder appears in pre-layout
+         */
+        static final int FLAG_APPEARED_IN_PRE_LAYOUT = 1 << 12;
 
         int mFlags;
         @NonNull
@@ -748,8 +905,11 @@ public class FlexTabLayout extends ViewGroup {
     public static class State {
         static final int STEP_START = 1;
         static final int STEP_LAYOUT = 1 << 1;
+        static final int STEP_ANIMATIONS = 1 << 2;
 
         boolean mIsMeasuring = false;
+
+        boolean mRunSimpleAnimations = false;
 
         /**
          * Number of items adapter has.
@@ -770,6 +930,119 @@ public class FlexTabLayout extends ViewGroup {
                 throw new IllegalStateException("Layout state should be one of "
                         + Integer.toBinaryString(accepted) + " but it is "
                         + Integer.toBinaryString(mLayoutStep));
+            }
+        }
+    }
+
+    public abstract static class ItemAnimator {
+        /**
+         * The Item represented by this ViewHolder is removed from the adapter.
+         * <p>
+         */
+        public static final int FLAG_REMOVED = FlexItemHolder.FLAG_REMOVED;
+
+        /**
+         * This ViewHolder was not laid out but has been added to the layout in pre-layout state
+         * by the {@link RecyclerView.LayoutManager}. This means that the item was already in the Adapter but
+         * invisible and it may become visible in the post layout phase. LayoutManagers may prefer
+         * to add new items in pre-layout to specify their virtual location when they are invisible
+         * (e.g. to specify the item should <i>animate in</i> from below the visible area).
+         * <p>
+         */
+        public static final int FLAG_APPEARED_IN_PRE_LAYOUT =
+                FlexItemHolder.FLAG_APPEARED_IN_PRE_LAYOUT;
+
+        private long mAddDuration = 120;
+        private long mRemoveDuration = 120;
+
+        public abstract boolean animateDisappearance(@NonNull FlexItemHolder viewHolder,
+                                                     @NonNull ItemHolderInfo preLayoutInfo, @Nullable ItemHolderInfo postLayoutInfo);
+
+        public abstract boolean animateAppearance(@NonNull FlexItemHolder viewHolder,
+                                                  @Nullable ItemHolderInfo preLayoutInfo, @NonNull ItemHolderInfo postLayoutInfo);
+
+        /**
+         * Gets the current duration for which all remove animations will run.
+         *
+         * @return The current remove duration
+         */
+        public long getRemoveDuration() {
+            return mRemoveDuration;
+        }
+
+        /**
+         * Gets the current duration for which all add animations will run.
+         *
+         * @return The current add duration
+         */
+        public long getAddDuration() {
+            return mAddDuration;
+        }
+
+        public abstract void runPendingAnimations();
+
+        public @NonNull
+        ItemAnimator.ItemHolderInfo recordPostLayoutInformation(@NonNull State state,
+                                                                @NonNull FlexItemHolder viewHolder) {
+            return obtainHolderInfo().setFrom(viewHolder);
+        }
+
+        @NonNull
+        public ItemAnimator.ItemHolderInfo obtainHolderInfo() {
+            return new ItemAnimator.ItemHolderInfo();
+        }
+
+        public static class ItemHolderInfo {
+            /**
+             * The left edge of the View (excluding decorations)
+             */
+            public int left;
+
+            /**
+             * The top edge of the View (excluding decorations)
+             */
+            public int top;
+
+            /**
+             * The right edge of the View (excluding decorations)
+             */
+            public int right;
+
+            /**
+             * The bottom edge of the View (excluding decorations)
+             */
+            public int bottom;
+
+            /**
+             * The change flags that were passed to
+             */
+            @IntDef(flag = true, value = {
+                    FLAG_REMOVED,
+                    FLAG_APPEARED_IN_PRE_LAYOUT
+            })
+            @Retention(RetentionPolicy.SOURCE)
+            public @interface AdapterChanges {
+            }
+
+            public int changeFlags;
+
+            public ItemHolderInfo() {
+            }
+
+            @NonNull
+            public ItemAnimator.ItemHolderInfo setFrom(@NonNull FlexItemHolder holder) {
+                return setFrom(holder, 0);
+            }
+
+            @NonNull
+            public ItemAnimator.ItemHolderInfo setFrom(@NonNull FlexItemHolder holder,
+                                                       @AdapterChanges int flags) {
+                final View view = holder.itemView;
+                this.left = view.getLeft();
+                this.top = view.getTop();
+                this.right = view.getRight();
+                this.bottom = view.getBottom();
+                return this;
             }
         }
     }
