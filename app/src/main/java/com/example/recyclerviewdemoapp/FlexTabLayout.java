@@ -5,6 +5,7 @@ import android.database.Observable;
 import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.util.Log;
+import android.util.SparseArray;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
@@ -13,9 +14,9 @@ import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.Px;
+import androidx.collection.LongSparseArray;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.recyclerview.widget.ViewInfoStore;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -46,9 +47,29 @@ public class FlexTabLayout extends ViewGroup {
     FlexTabLayout.Adapter mAdapter;
     private final FlexTabViewDataObserver mObserver = new FlexTabViewDataObserver();
     //横向间距，不包括头尾
-    private static int HORIZONTAL_SPACE = 100;
+    private static int HORIZONTAL_SPACE = 0;
     //纵向间距，不包括头尾
-    private static int VERTICAL_SPACE = 1;
+    private static int VERTICAL_SPACE = 0;
+
+    private int widthUsed = 0;
+    private int totalHeight = 0;
+
+    public int getWidthUsed() {
+        return widthUsed;
+    }
+
+    public void setWidthUsed(int widthUsed) {
+        this.widthUsed = widthUsed;
+    }
+
+    public int getHeightUsed() {
+        return totalHeight;
+    }
+
+    public void setHeightUsed(int totalHeight) {
+        this.totalHeight = totalHeight;
+    }
+
     /**
      * Handles adapter updates
      */
@@ -265,14 +286,29 @@ public class FlexTabLayout extends ViewGroup {
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
 
-        //先测量一下自己
+        if (mAdapter == null) {
+            //先测量一下自己
+            defaultOnMeasure(widthMeasureSpec, heightMeasureSpec);
+            return;
+        }
+        final int widthMode = MeasureSpec.getMode(widthMeasureSpec);
+        final int heightMode = MeasureSpec.getMode(heightMeasureSpec);
+
         defaultOnMeasure(widthMeasureSpec, heightMeasureSpec);
+        final boolean measureSpecModeIsExactly =
+                widthMode == MeasureSpec.EXACTLY && heightMode == MeasureSpec.EXACTLY;
+        if (measureSpecModeIsExactly || mAdapter == null) {
+            //此时flexTabLayout的宽高都是固定值，与child无关，可以直接退出测量过程
+            return;
+        }
+        if (mState.mLayoutStep == State.STEP_START) {
+            dispatchLayoutStep1();
+        }
         setMeasureSpecs(widthMeasureSpec, heightMeasureSpec);
-//        final boolean measureSpecModeIsExactly =
-//                mWidthMode == MeasureSpec.EXACTLY && mHeightMode == MeasureSpec.EXACTLY;
-//        if (measureSpecModeIsExactly || mAdapter == null) {
-//            return;
-//        }
+        mState.mIsMeasuring = true;
+        //对child执行测量
+        dispatchLayoutStep2();
+        setMeasuredDimensionFromChildren(widthMeasureSpec, heightMeasureSpec);
 //        //测量并布局child
 //        final int widthSize = MeasureSpec.getSize(widthMeasureSpec);
 //        final int heightSize = MeasureSpec.getSize(heightMeasureSpec);
@@ -355,11 +391,11 @@ public class FlexTabLayout extends ViewGroup {
 //
 //        }
 
-        if (mAdapter != null) {
-            mState.mItemCount = mAdapter.getItemCount();
-        } else {
-            mState.mItemCount = 0;
-        }
+//        if (mAdapter != null) {
+//            mState.mItemCount = mAdapter.getItemCount();
+//        } else {
+//            mState.mItemCount = 0;
+//        }
 
 
     }
@@ -378,18 +414,22 @@ public class FlexTabLayout extends ViewGroup {
             defaultOnMeasure(widthSpec, heightSpec);
             return;
         }
-
-
-        int minX = Integer.MAX_VALUE;
-        int minY = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE;
-        int maxY = Integer.MIN_VALUE;
-
-        for (int i = 0; i < count; i++) {
-            View child = getChildAt(i);
-            final Rect bounds = mTempRect;
-            getDecoratedBoundsWithMarginsInt(child, bounds);
+        int width;
+        int height;
+        if (MeasureSpec.getMode(widthSpec) == AT_MOST) {
+            width = mState.totalWidth;
+        } else {
+            width = MeasureSpec.getSize(widthSpec);
         }
+        if (MeasureSpec.getMode(heightSpec) == AT_MOST) {
+            height = mState.totalHeight;
+        } else {
+            height = MeasureSpec.getSize(heightSpec);
+        }
+        Log.i(TAG, "setMeasuredDimensionFromChildren  width:" + width + "---height:" + height);
+        Log.i(TAG, "setMeasuredDimensionFromChildren  widthUsed:" + mState.widthUsed + "---totalHeight:" + mState.totalHeight);
+        setMeasuredDimension(width + getPaddingLeft() + getPaddingRight(), height + getPaddingTop() + getPaddingBottom());
+
     }
 
     static void getDecoratedBoundsWithMarginsInt(View view, Rect outBounds) {
@@ -429,6 +469,7 @@ public class FlexTabLayout extends ViewGroup {
                 LayoutParams layoutParams = (LayoutParams) generateDefaultLayoutParams();
                 child.setLayoutParams(layoutParams);
             } else {
+                Log.i(TAG, "createNewView  lp:" + lp);
                 child.setLayoutParams(generateLayoutParams(lp));
             }
 
@@ -455,7 +496,7 @@ public class FlexTabLayout extends ViewGroup {
 
     protected void measureChildWithMargins(View child,
                                            int parentWidthMeasureSpec, int widthUsed,
-                                           int parentHeightMeasureSpec, int heightUsed) {
+                                           int parentHeightMeasureSpec, int totalHeight) {
         final LayoutParams lp = (LayoutParams) child.getLayoutParams();
 
         final int childWidthMeasureSpec = getChildMeasureSpec(parentWidthMeasureSpec,
@@ -463,7 +504,7 @@ public class FlexTabLayout extends ViewGroup {
                         + widthUsed, lp.width);
         final int childHeightMeasureSpec = getChildMeasureSpec(parentHeightMeasureSpec,
                 getPaddingBottom() + getPaddingTop() + lp.topMargin + lp.bottomMargin
-                        + heightUsed, lp.height);
+                        + totalHeight, lp.height);
 
         child.measure(childWidthMeasureSpec, childHeightMeasureSpec);
     }
@@ -571,8 +612,6 @@ public class FlexTabLayout extends ViewGroup {
      * <p>
      * Cached items must be discarded when setting this to true, so that the cache may be freely
      * used by prefetching until the next layout occurs.
-     *
-     * @see #processDataSetCompletelyChanged(boolean)
      */
     boolean mDataSetHasChangedAfterLayout = false;
 
@@ -607,9 +646,11 @@ public class FlexTabLayout extends ViewGroup {
      * 真正对child进行测量和布局
      */
     private void dispatchLayoutStep2() {
-        mState.assertLayoutStep(State.STEP_LAYOUT);
+        mState.assertLayoutStep(State.STEP_LAYOUT | State.STEP_ANIMATIONS);
+        mState.mLayoutStep = State.STEP_ANIMATIONS;
         mState.mItemCount = mAdapter.getItemCount();
         onLayoutChildren();
+        //根据child的布局确认parent
     }
 
     /**
@@ -657,27 +698,121 @@ public class FlexTabLayout extends ViewGroup {
      */
     private void onLayoutChildren() {
         //step1:获取一个child
+        mState.widthUsed = 0;
+        mState.totalHeight = 0;
+        mState.columnCount.clear();
+        mState.curChildIndex = 0;
+        mState.curRowIndex = 0;
+        mState.curRowMaxHeight = 0;
         for (int i = 0; i < mState.mItemCount; i++) {
             View view = getChildViewManager().getChildAt(i);
-            int usedWidth;
-            int usedHeight;
-            int rowMaxHeight;
-            int left, top, right, bottom;
-            measureChildWithMargins(view);
+            fillChild(view, mState);
             Log.i(TAG, "onLayoutChildren_" + i + "---width:" + view.getMeasuredWidth() + "_height:" + view.getMeasuredHeight());
-
-
 //            layoutChildWithMargins(view, left, top, right, bottom);
+        }
+    }
+
+    /**
+     * 获取此时布局的起始行高
+     * 考虑了parent的padding和divider
+     */
+
+    private int getStartRowHeight(State state, int rowIndex) {
+        if (state == null) return 0;
+        int size = state.rowMaxHeight.size();
+        if (size == 0) {
+            return 0;
+        }
+        int startHeight = state.rowMaxHeight.get(rowIndex, 0);
+        if (state.curRowIndex == 0) {
+            return startHeight + getPaddingTop();
+        } else {
+            return startHeight;
+        }
+    }
+
+    /**
+     * @param child
+     * @param state 1.测量child
+     *              2.布局child
+     */
+    private void fillChild(@NonNull View child, State state) {
+        measureChildWithMargins(child);
+        int left = 0, top = 0, right = 0, bottom = 0;
+        int startRow = state.curRowIndex;
+        int startHeight = getStartRowHeight(state, state.curRowIndex);
+        LayoutParams params = (LayoutParams) child.getLayoutParams();
+        int maxRowWidth = (mWidthSpec == AT_MOST ? mWidth : MeasureSpec.getSize(mWidthSpec)) - getPaddingLeft() - getPaddingRight();
+        int childNeedWidth;
+        if (state.curChildIndex == 0) {
+            childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin;
+        } else {
+            childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin + HORIZONTAL_SPACE;
+        }
+        if (childNeedWidth > (maxRowWidth - mState.getWidthUsed())) {
+            //换行
+            childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin;
+            left = getPaddingLeft() + params.leftMargin;
+            right = left + child.getMeasuredWidth();
+            mState.setWidthUsed(childNeedWidth);
+            params.rowIndex = state.curRowIndex;
+            mState.columnCount.put(mState.curRowIndex, 0);
+            mState.curRowIndex++;
+        } else {
+            Integer count = mState.columnCount.get(mState.curRowIndex, 0);
+            mState.columnCount.put(mState.curRowIndex, count++);
+            if (state.curChildIndex == 0) {
+                left = mState.widthUsed + getPaddingLeft() + params.leftMargin;
+            } else {
+                left = mState.widthUsed + getPaddingLeft() + HORIZONTAL_SPACE + params.leftMargin;
+            }
+            right = left + child.getMeasuredWidth();
+            mState.setWidthUsed(mState.widthUsed + childNeedWidth);
+            mState.totalWidth = Math.min(MeasureSpec.getSize(mWidthSpec), mState.totalWidth + childNeedWidth);
+        }
+
+        int childNeedHeight;
+        if (state.curRowIndex > 0) {
+            childNeedHeight = child.getMeasuredHeight() + params.topMargin + params.bottomMargin + VERTICAL_SPACE;
+        } else {
+            childNeedHeight = child.getMeasuredHeight() + params.topMargin + params.bottomMargin;
+        }
+        if (mState.curChildIndex == 0) {
+            mState.totalHeight = childNeedHeight;
+            mState.lastChildMaxHeight = childNeedHeight;
+        }
+        mState.curRowMaxHeight = mState.lastChildMaxHeight;
+        if (mHeightMode == AT_MOST) {
+            if (state.curRowIndex > startRow) {
+                //在之前横向布局的过程中，执行了换行操作
+                startHeight += mState.curRowMaxHeight;
+                startHeight += VERTICAL_SPACE;
+                mState.lastChildMaxHeight = childNeedHeight;
+                mState.curRowMaxHeight=mState.lastChildMaxHeight;
+                mState.totalHeight += mState.curRowMaxHeight;
+                mState.rowMaxHeight.put(mState.curRowIndex, startHeight);
+            } else {
+                if (childNeedHeight > mState.lastChildMaxHeight) {
+                    mState.totalHeight += (childNeedHeight - mState.lastChildMaxHeight);
+                    mState.lastChildMaxHeight = childNeedHeight;
+                }
+            }
+        }
+        top = startHeight;
+        bottom = top + child.getMeasuredHeight();
+        Log.i(TAG, "childNeedWidth index:" + mState.curChildIndex + "----leftMargin:" + params.leftMargin);
+        params.rowIndex = state.curRowIndex;
+        params.columnIndex = mState.columnCount.get(params.rowIndex, 0) + 1;
+        mState.curChildIndex++;
+        child.layout(left, top, right, bottom);
+        if (child.getParent() == null) {
+            addView(child,params);
         }
     }
 
     public void layoutChildWithMargins(@NonNull View child, int left, int top, int right,
                                        int bottom) {
         final LayoutParams lp = (LayoutParams) child.getLayoutParams();
-        final Rect insets = lp.mDividerInsets;
-        child.layout(left + insets.left + lp.leftMargin, top + insets.top + lp.topMargin,
-                right - insets.right - lp.rightMargin,
-                bottom - insets.bottom - lp.bottomMargin);
     }
 
     private int mWidthMode, mHeightMode;
@@ -704,11 +839,9 @@ public class FlexTabLayout extends ViewGroup {
     public static class LayoutParams extends ViewGroup.MarginLayoutParams {
         FlexTabLayout.FlexItemHolder mViewHolder;
         boolean mInsetsDirty = true;
-        final Rect mDividerInsets = new Rect();
+        int rowIndex;
+        int columnIndex;
 
-        public LayoutParams(Context c, AttributeSet attrs) {
-            super(c, attrs);
-        }
 
         public LayoutParams(int width, int height) {
             super(width, height);
@@ -909,7 +1042,44 @@ public class FlexTabLayout extends ViewGroup {
 
         boolean mIsMeasuring = false;
 
-        boolean mRunSimpleAnimations = false;
+        int widthUsed;
+        int totalHeight;
+        int totalWidth;
+
+        //当前行数
+        int curRowIndex = 0;
+
+        //当前行的最大高度
+        int curRowMaxHeight = 0;
+
+        //当前布局的child  index
+        int curChildIndex = 0;
+
+
+        // 上一个最大的child高度
+        int lastChildMaxHeight = 0;
+        //每一列的数量
+        final SparseArray<Integer> columnCount = new SparseArray<>();
+        //每一行的最大高度
+        final SparseArray<Integer> rowMaxHeight = new SparseArray<>();
+
+        public int getWidthUsed() {
+            return widthUsed;
+        }
+
+        public void setWidthUsed(int widthUsed) {
+            this.widthUsed = widthUsed;
+        }
+
+        public int getTotalHeight() {
+            return totalHeight;
+        }
+
+        public void setTotalHeight(int totalHeight) {
+            this.totalHeight = totalHeight;
+        }
+
+        boolean mRunSimpleAnimations = true;
 
         /**
          * Number of items adapter has.
@@ -917,7 +1087,7 @@ public class FlexTabLayout extends ViewGroup {
         int mItemCount = 0;
 
         @IntDef(flag = true, value = {
-                STEP_START, STEP_LAYOUT
+                STEP_START, STEP_LAYOUT, STEP_ANIMATIONS
         })
         @interface LayoutState {
         }

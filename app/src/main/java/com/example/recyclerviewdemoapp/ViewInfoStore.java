@@ -5,9 +5,6 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.collection.LongSparseArray;
 import androidx.collection.SimpleArrayMap;
-import androidx.recyclerview.widget.RecyclerView;
-
-import static androidx.recyclerview.widget.ViewInfoStore.InfoRecord.FLAG_POST;
 
 /**
  * This class abstracts all tracking for Views to run animations.
@@ -68,7 +65,7 @@ public class ViewInfoStore {
             mLayoutHolderMap.put(holder, record);
         }
         record.postInfo = info;
-        record.flags |= FLAG_POST;
+        record.flags |= InfoRecord.FLAG_POST;
     }
 
     static class InfoRecord {

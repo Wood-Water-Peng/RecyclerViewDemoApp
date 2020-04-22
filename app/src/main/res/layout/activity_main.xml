@@ -9,13 +9,12 @@
 
     <com.example.recyclerviewdemoapp.FlexTabLayout
         android:id="@+id/flexTabLayout"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@color/colorAccent"
         android:paddingLeft="10dp"
-        android:paddingTop="5dp"
-        android:paddingRight="10dp"
-        android:paddingBottom="5dp" />
+        android:paddingTop="20dp"
+        android:paddingRight="10dp" />
 
     <Button
         android:id="@+id/button"

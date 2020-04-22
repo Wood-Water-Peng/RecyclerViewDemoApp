@@ -25,11 +25,13 @@ import com.example.recyclerviewdemoapp.databinding.ActivityMainBinding;
 import java.util.ArrayList;
 import java.util.List;
 
+import static android.widget.Toast.LENGTH_SHORT;
+
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private ActivityMainBinding viewBinding;
     private List<TestBean> testBeanList = new ArrayList<>();
-    private static final int LEN = 10;
+    private static final int LEN = 12;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
 //                    viewBinding.flexTabLayout.childViewManager.clear();
 //                    notifyDataSetChanged();
                     notifyItemInserted(position);
+                    Toast.makeText(itemView.getContext(), "ddddd", LENGTH_SHORT).show();
                 } else {
                     if (itemView instanceof NormalItemView) {
                         NormalItemView normalItemView = (NormalItemView) itemView;
@@ -63,16 +66,18 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public FlexTabLayout.FlexItemHolder onCreateItemHolder(@NonNull ViewGroup parent, final int position) {
                 if (position == getItemCount() - 1) {
-                    return new ItemHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item_plus, parent, false));
+//                    final ItemHolder itemHolder = new ItemHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item_plus, parent, false));
+//                    return itemHolder;
+                    return new ItemHolder(new PlusButtonItemView(parent.getContext()));
                 }
                 final NormalItemView view = new NormalItemView(parent.getContext());
                 TextView textView = view.findViewById(R.id.normal_item_tv);
                 textView.setText(testBeanList.get(position).getText());
                 view.setSelected(testBeanList.get(position).isSelected());
                 Log.i(TAG, "onCreateItemHolder position:" + position);
-                if (position == 2) {
-                    view.setVisibility(View.GONE);
-                }
+//                if (position == 2) {
+//                    view.setVisibility(View.GONE);
+//                }
                 return new ItemHolder(view);
 
             }
@@ -85,7 +90,7 @@ public class MainActivity extends AppCompatActivity {
         viewBinding.button.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                startActivity(new Intent(MainActivity.this,RecyclerViewActivity.class));
+                startActivity(new Intent(MainActivity.this, RecyclerViewActivity.class));
             }
         });
     }
