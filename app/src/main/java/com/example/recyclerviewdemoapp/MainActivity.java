@@ -1,31 +1,25 @@
 package com.example.recyclerviewdemoapp;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
-
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.ViewTreeObserver;
 import android.widget.FrameLayout;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.example.recyclerviewdemoapp.databinding.ActivityMainBinding;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static android.widget.Toast.LENGTH_SHORT;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.RecyclerView;
 
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
@@ -51,8 +45,7 @@ public class MainActivity extends AppCompatActivity {
 //                    viewBinding.flexTabLayout.removeAllViews();
 //                    viewBinding.flexTabLayout.childViewManager.clear();
 //                    notifyDataSetChanged();
-                    notifyItemInserted(position);
-                    Toast.makeText(itemView.getContext(), "ddddd", LENGTH_SHORT).show();
+                    notifyItemInserted(position + 1);
                 } else {
                     if (itemView instanceof NormalItemView) {
                         NormalItemView normalItemView = (NormalItemView) itemView;

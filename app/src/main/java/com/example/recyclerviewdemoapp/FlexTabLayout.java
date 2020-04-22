@@ -10,19 +10,16 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
-import androidx.annotation.IntDef;
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.annotation.Px;
-import androidx.collection.LongSparseArray;
-import androidx.core.view.ViewCompat;
-import androidx.recyclerview.widget.RecyclerView;
-
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+
+import androidx.annotation.IntDef;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.core.view.ViewCompat;
+import androidx.recyclerview.widget.RecyclerView;
 
 import static android.view.View.MeasureSpec.AT_MOST;
 
@@ -213,7 +210,8 @@ public class FlexTabLayout extends ViewGroup {
         if (child == null) {
             return null;
         }
-        return ((FlexTabLayout.LayoutParams) child.getLayoutParams()).mViewHolder;
+        FlexItemHolder mViewHolder = ((LayoutParams) child.getLayoutParams()).mViewHolder;
+        return mViewHolder;
     }
 
     ChildHelper mChildHelper;
@@ -463,16 +461,20 @@ public class FlexTabLayout extends ViewGroup {
         }
 
         private View createNewView(final int position) {
-            final View child = mAdapter.onCreateItemHolder(FlexTabLayout.this, position).itemView;
+            FlexItemHolder holder = mAdapter.onCreateItemHolder(FlexTabLayout.this, position);
+            final View child = holder.itemView;
             final ViewGroup.LayoutParams lp = child.getLayoutParams();
+            final LayoutParams layoutParams;
             if (lp == null) {
-                LayoutParams layoutParams = (LayoutParams) generateDefaultLayoutParams();
+                layoutParams = (LayoutParams) generateDefaultLayoutParams();
                 child.setLayoutParams(layoutParams);
             } else {
                 Log.i(TAG, "createNewView  lp:" + lp);
-                child.setLayoutParams(generateLayoutParams(lp));
+                layoutParams = (LayoutParams) generateLayoutParams(lp);
+                child.setLayoutParams(layoutParams);
             }
-
+            layoutParams.mViewHolder = holder;
+            layoutParams.mViewHolder.mPosition = position;
             return child;
         }
 
@@ -613,7 +615,7 @@ public class FlexTabLayout extends ViewGroup {
      * Cached items must be discarded when setting this to true, so that the cache may be freely
      * used by prefetching until the next layout occurs.
      */
-    boolean mDataSetHasChangedAfterLayout = false;
+    boolean mDataSetHasChangedAfterLayout = true;
 
     /**
      * Consumes adapter updates and calculates which type of animations we want to run.
@@ -788,7 +790,7 @@ public class FlexTabLayout extends ViewGroup {
                 startHeight += mState.curRowMaxHeight;
                 startHeight += VERTICAL_SPACE;
                 mState.lastChildMaxHeight = childNeedHeight;
-                mState.curRowMaxHeight=mState.lastChildMaxHeight;
+                mState.curRowMaxHeight = mState.lastChildMaxHeight;
                 mState.totalHeight += mState.curRowMaxHeight;
                 mState.rowMaxHeight.put(mState.curRowIndex, startHeight);
             } else {
@@ -806,7 +808,7 @@ public class FlexTabLayout extends ViewGroup {
         mState.curChildIndex++;
         child.layout(left, top, right, bottom);
         if (child.getParent() == null) {
-            addView(child,params);
+            addView(child, params);
         }
     }
 
@@ -841,7 +843,6 @@ public class FlexTabLayout extends ViewGroup {
         boolean mInsetsDirty = true;
         int rowIndex;
         int columnIndex;
-
 
         public LayoutParams(int width, int height) {
             super(width, height);

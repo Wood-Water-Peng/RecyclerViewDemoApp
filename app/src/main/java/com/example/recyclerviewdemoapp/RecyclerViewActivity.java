@@ -17,36 +17,39 @@ import com.example.recyclerviewdemoapp.databinding.ActivityRecyclerViewBinding;
 
 public class RecyclerViewActivity extends AppCompatActivity {
     private ActivityRecyclerViewBinding viewBinding;
+    private int totalLen = 3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         viewBinding = ActivityRecyclerViewBinding.inflate(getLayoutInflater());
         setContentView(viewBinding.getRoot());
-        new Handler().postDelayed(new Runnable() {
+        final RecyclerView.Adapter adapter = new RecyclerView.Adapter() {
+            @NonNull
             @Override
-            public void run() {
-                viewBinding.recycler.setLayoutManager(new LinearLayoutManager(RecyclerViewActivity.this));
-                viewBinding.recycler.setAdapter(new RecyclerView.Adapter() {
-                    @NonNull
-                    @Override
-                    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-                        return new ItemHolder(new NormalItemView(parent.getContext()));
-                    }
-
-                    @Override
-                    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
-                        TextView textView = holder.itemView.findViewById(R.id.normal_item_tv);
-                        textView.setText("position:" + position);
-                    }
-
-                    @Override
-                    public int getItemCount() {
-                        return 3;
-                    }
-                });
+            public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+                return new ItemHolder(new NormalItemView(parent.getContext()));
             }
-        }, 1000);
+
+            @Override
+            public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+                TextView textView = holder.itemView.findViewById(R.id.normal_item_tv);
+                textView.setText("position:" + position);
+            }
+
+            @Override
+            public int getItemCount() {
+                return totalLen;
+            }
+        };
+        viewBinding.recycler.setLayoutManager(new LinearLayoutManager(RecyclerViewActivity.this));
+        viewBinding.recycler.setAdapter(adapter);
+        viewBinding.button.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                adapter.notifyItemInserted(totalLen++);
+            }
+        });
     }
 
     class ItemHolder extends RecyclerView.ViewHolder {
