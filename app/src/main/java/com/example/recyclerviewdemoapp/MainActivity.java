@@ -26,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
     private ActivityMainBinding viewBinding;
     private List<TestBean> testBeanList = new ArrayList<>();
     private static final int LEN = 8;
+    private FlexTabLayout.Adapter adapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,16 +37,12 @@ public class MainActivity extends AppCompatActivity {
             testBeanList.add(new TestBean(false, "" + i));
         }
 
-        viewBinding.flexTabLayout.setAdapter(new FlexTabLayout.Adapter() {
+        adapter = new FlexTabLayout.Adapter() {
 
             @Override
             public void onItemClicked(View itemView, int position) {
                 if (position == getItemCount() - 1) {
-                    testBeanList.add(new TestBean(false, "" + position));
-//                    viewBinding.flexTabLayout.removeAllViews();
-//                    viewBinding.flexTabLayout.childViewManager.clear();
-//                    notifyDataSetChanged();
-                    notifyItemInserted(position + 1);
+
                 } else {
                     if (itemView instanceof NormalItemView) {
                         NormalItemView normalItemView = (NormalItemView) itemView;
@@ -58,11 +55,11 @@ public class MainActivity extends AppCompatActivity {
             @NonNull
             @Override
             public FlexTabLayout.FlexItemHolder onCreateItemHolder(@NonNull ViewGroup parent, final int position) {
-                if (position == getItemCount() - 1) {
-//                    final ItemHolder itemHolder = new ItemHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item_plus, parent, false));
-//                    return itemHolder;
-                    return new ItemHolder(new PlusButtonItemView(parent.getContext()));
-                }
+//                if (position == getItemCount() - 1) {
+////                    final ItemHolder itemHolder = new ItemHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.normal_item_plus, parent, false));
+////                    return itemHolder;
+//                    return new ItemHolder(new PlusButtonItemView(parent.getContext()));
+//                }
                 final NormalItemView view = new NormalItemView(parent.getContext());
                 TextView textView = view.findViewById(R.id.normal_item_tv);
                 textView.setText(testBeanList.get(position).getText());
@@ -79,11 +76,28 @@ public class MainActivity extends AppCompatActivity {
             public int getItemCount() {
                 return testBeanList.size();
             }
-        });
-        viewBinding.button.setOnClickListener(new View.OnClickListener() {
+        };
+        viewBinding.flexTabLayout.setAdapter(adapter);
+        viewBinding.buttonJump.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 startActivity(new Intent(MainActivity.this, RecyclerViewActivity.class));
+            }
+        });
+
+        viewBinding.buttonAdd.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                testBeanList.add(new TestBean(false, "" + testBeanList.size()));
+                adapter.notifyItemInserted(testBeanList.size());
+            }
+        });
+        viewBinding.buttonRemove.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int removedIndex = testBeanList.size() - 1;
+                testBeanList.remove(removedIndex);
+                adapter.notifyItemRemoved(removedIndex);
             }
         });
     }

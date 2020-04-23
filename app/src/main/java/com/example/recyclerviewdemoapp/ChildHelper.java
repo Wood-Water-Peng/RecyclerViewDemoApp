@@ -78,6 +78,10 @@ public class ChildHelper {
         return mCallback.getChildAt(index);
     }
 
+    public void detachViewFromParent(int index) {
+        mCallback.detachViewFromParent(index);
+    }
+
     interface Callback {
 
         int getChildCount();
@@ -95,6 +99,8 @@ public class ChildHelper {
         void onEnteredHiddenState(View child);
 
         void onLeftHiddenState(View child);
+
+        void detachViewFromParent(int index);
     }
 }
 

@@ -27,4 +27,7 @@ public abstract class SimpleItemAnimator extends FlexTabLayout.ItemAnimator {
      * false otherwise.
      */
     public abstract boolean animateAdd(FlexTabLayout.FlexItemHolder holder);
+
+    public abstract boolean animateRemove(FlexTabLayout.FlexItemHolder holder);
+
 }

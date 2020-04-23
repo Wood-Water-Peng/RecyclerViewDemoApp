@@ -140,6 +140,14 @@ public class FlexTabLayout extends ViewGroup {
         }
     }
 
+    void animateDisappearance(@NonNull FlexItemHolder itemHolder,
+                              @Nullable ItemAnimator.ItemHolderInfo preLayoutInfo, @NonNull ItemAnimator.ItemHolderInfo postLayoutInfo) {
+//        addAnimatingView(holder);
+        if (mItemAnimator.animateDisappearance(itemHolder, preLayoutInfo, postLayoutInfo)) {
+            postAnimationRunner();
+        }
+    }
+
     @Override
     public void requestLayout() {
         if (mInterceptRequestLayoutDepth == 0) {
@@ -171,7 +179,7 @@ public class FlexTabLayout extends ViewGroup {
 
                 @Override
                 public void processDisappeared(FlexItemHolder viewHolder, @NonNull ItemAnimator.ItemHolderInfo preInfo, @Nullable ItemAnimator.ItemHolderInfo postInfo) {
-
+                    animateDisappearance(viewHolder, preInfo, postInfo);
                 }
 
                 @Override
@@ -234,6 +242,11 @@ public class FlexTabLayout extends ViewGroup {
             public void onLeftHiddenState(View child) {
 
             }
+
+            @Override
+            public void detachViewFromParent(int index) {
+                FlexTabLayout.this.detachViewFromParent(index);
+            }
         });
     }
 
@@ -263,11 +276,38 @@ public class FlexTabLayout extends ViewGroup {
         requestLayout();
     }
 
+    void offsetPositionRecordsForRemove(int positionStart, int itemCount, boolean applyToPreLayout) {
+        final int positionEnd = positionStart + itemCount;
+        final int childCount = mChildHelper.getUnfilteredChildCount();
+        for (int i = 0; i < childCount; i++) {
+            final FlexItemHolder holder = getChildViewHolderInt(mChildHelper.getUnfilteredChildAt(i));
+            if (holder != null) {
+                if (holder.mPosition >= positionEnd) {
+                    holder.offsetPosition(-itemCount, applyToPreLayout);
+                    mState.mStructureChanged = true;
+                } else if (holder.mPosition >= positionStart) {
+                    holder.flagRemovedAndOffsetPosition(positionStart - 1, -itemCount,
+                            applyToPreLayout);
+                    mState.mStructureChanged = true;
+                }
+            }
+        }
+        requestLayout();
+
+    }
+
     private void initAdapterManager() {
         mAdapterHelper = new AdapterHelper(new AdapterHelper.Callback() {
             @Override
             public void offsetPositionsForAdd(int positionStart, int itemCount) {
                 offsetPositionRecordsForInsert(positionStart, itemCount);
+                mItemsAddedOrRemoved = true;
+            }
+
+            @Override
+            public void offsetPositionsForRemovingLaidOutOrNewView(int positionStart, int itemCount) {
+                offsetPositionRecordsForRemove(positionStart, itemCount, false);
+                // should we create mItemsMoved ?
                 mItemsAddedOrRemoved = true;
             }
         });
@@ -694,10 +734,12 @@ public class FlexTabLayout extends ViewGroup {
     private void dispatchLayoutStep2() {
         startInterceptRequestLayout();
         mState.assertLayoutStep(State.STEP_LAYOUT | State.STEP_ANIMATIONS);
-        mState.mLayoutStep = State.STEP_ANIMATIONS;
         mState.mItemCount = mAdapter.getItemCount();
+        // Step 2: Run layout
+        mState.mInPreLayout = false;
         onLayoutChildren();
-        //根据child的布局确认parent
+        mState.mRunSimpleAnimations = mState.mRunSimpleAnimations && mItemAnimator != null;
+        mState.mLayoutStep = State.STEP_ANIMATIONS;
         stopInterceptRequestLayout();
     }
 
@@ -755,12 +797,25 @@ public class FlexTabLayout extends ViewGroup {
         mState.curChildIndex = 0;
         mState.curRowIndex = 0;
         mState.curRowMaxHeight = 0;
+        detachAttachedViews();
         for (int i = 0; i < mState.mItemCount; i++) {
             View view = getChildViewManager().getChildAt(i);
             fillChild(view, mState);
             Log.i(TAG, "onLayoutChildren_" + i + "---width:" + view.getMeasuredWidth() + "_height:" + view.getMeasuredHeight());
 //            layoutChildWithMargins(view, left, top, right, bottom);
         }
+    }
+
+    private void detachAttachedViews() {
+        int childCount = mChildHelper != null ? mChildHelper.getChildCount() : 0;
+        for (int i = childCount - 1; i >= 0; i--) {
+            final View v = getChildAt(i);
+            detachViewAt(i);
+        }
+    }
+
+    private void detachViewAt(int index) {
+        mChildHelper.detachViewFromParent(index);
     }
 
     /**
@@ -927,6 +982,10 @@ public class FlexTabLayout extends ViewGroup {
             mObservable.notifyItemRangeInserted(position, 1);
         }
 
+        public final void notifyItemRemoved(int position) {
+            mObservable.notifyItemRangeRemoved(position, 1);
+        }
+
         public abstract void onItemClicked(View itemView, int position);
 
         @NonNull
@@ -1001,6 +1060,16 @@ public class FlexTabLayout extends ViewGroup {
             }
         }
 
+        void flagRemovedAndOffsetPosition(int mNewPosition, int offset, boolean applyToPreLayout) {
+            addFlags(FlexItemHolder.FLAG_REMOVED);
+            offsetPosition(offset, applyToPreLayout);
+            mPosition = mNewPosition;
+        }
+
+        void addFlags(int flags) {
+            mFlags |= flags;
+        }
+
         public final void setIsRecyclable(boolean recyclable) {
             mFlags |= FLAG_NOT_RECYCLABLE;
         }
@@ -1031,6 +1100,16 @@ public class FlexTabLayout extends ViewGroup {
             }
         }
 
+        public void notifyItemRangeRemoved(int positionStart, int itemCount) {
+            // since onItemRangeRemoved() is implemented by the app, it could do anything, including
+            // removing itself from {@link mObservers} - and that could cause problems if
+            // an iterator is used on the ArrayList {@link mObservers}.
+            // to avoid such problems, just march thru the list in the reverse order.
+            for (int i = mObservers.size() - 1; i >= 0; i--) {
+                mObservers.get(i).onItemRangeRemoved(positionStart, itemCount);
+            }
+        }
+
     }
 
 
@@ -1040,6 +1119,10 @@ public class FlexTabLayout extends ViewGroup {
         }
 
         public void onItemRangeInserted(int positionStart, int itemCount) {
+        }
+
+        public void onItemRangeRemoved(int positionStart, int itemCount) {
+            // do nothing
         }
     }
 
@@ -1052,6 +1135,13 @@ public class FlexTabLayout extends ViewGroup {
         @Override
         public void onItemRangeInserted(int positionStart, int itemCount) {
             if (mAdapterHelper.onItemRangeChanged(positionStart, itemCount, new Object())) {
+                triggerUpdateProcessor();
+            }
+        }
+
+        @Override
+        public void onItemRangeRemoved(int positionStart, int itemCount) {
+            if (mAdapterHelper.onItemRangeRemoved(positionStart, itemCount)) {
                 triggerUpdateProcessor();
             }
         }
@@ -1105,6 +1195,8 @@ public class FlexTabLayout extends ViewGroup {
         static final int STEP_START = 1;
         static final int STEP_LAYOUT = 1 << 1;
         static final int STEP_ANIMATIONS = 1 << 2;
+        public boolean mStructureChanged;
+        public boolean mInPreLayout;
 
         boolean mIsMeasuring = false;
 

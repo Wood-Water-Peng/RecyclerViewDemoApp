@@ -44,10 +44,16 @@ public class RecyclerViewActivity extends AppCompatActivity {
         };
         viewBinding.recycler.setLayoutManager(new LinearLayoutManager(RecyclerViewActivity.this));
         viewBinding.recycler.setAdapter(adapter);
-        viewBinding.button.setOnClickListener(new View.OnClickListener() {
+        viewBinding.buttonAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 adapter.notifyItemInserted(totalLen++);
+            }
+        });
+        viewBinding.buttonRemove.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                adapter.notifyItemRemoved(totalLen--);
             }
         });
     }

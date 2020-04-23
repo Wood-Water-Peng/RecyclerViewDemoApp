@@ -38,6 +38,9 @@ public class ViewInfoStore {
             }else if ((record.flags & FLAG_POST) != 0) {
                 // Was not in pre-layout, been added to post layout
                 callback.processAppeared(viewHolder, record.preInfo, record.postInfo);
+            }else if ((ViewInfoStore.InfoRecord.FLAG_PRE) != 0) {
+                // Was in pre-layout, never been added to post layout
+                callback.processDisappeared(viewHolder, record.preInfo, null);
             }
         }
     }

@@ -8,6 +8,8 @@ public class AdapterHelper implements OpReorderer.Callback {
     final AdapterHelper.Callback mCallback;
     final ArrayList<AdapterHelper.UpdateOp> mPendingUpdates = new ArrayList<AdapterHelper.UpdateOp>();
     Runnable mOnItemProcessedCallback;
+    private int mExistingUpdateTypes = 0;
+
     public AdapterHelper(AdapterHelper.Callback mCallback) {
         this.mCallback = mCallback;
         mOpReorderer = new OpReorderer(this);
@@ -24,6 +26,18 @@ public class AdapterHelper implements OpReorderer.Callback {
         return mPendingUpdates.size() == 1;
     }
 
+    /**
+     * @return True if updates should be processed.
+     */
+    boolean onItemRangeRemoved(int positionStart, int itemCount) {
+        if (itemCount < 1) {
+            return false;
+        }
+        mPendingUpdates.add(obtainUpdateOp(AdapterHelper.UpdateOp.REMOVE, positionStart, itemCount, null));
+        mExistingUpdateTypes |= AdapterHelper.UpdateOp.REMOVE;
+        return mPendingUpdates.size() == 1;
+    }
+
     @Override
     public UpdateOp obtainUpdateOp(int cmd, int positionStart, int itemCount, Object payload) {
         AdapterHelper.UpdateOp op = new AdapterHelper.UpdateOp(cmd, positionStart, itemCount, payload);
@@ -33,14 +47,19 @@ public class AdapterHelper implements OpReorderer.Callback {
         op.payload = payload;
         return op;
     }
+
     final OpReorderer mOpReorderer;
+
     void preProcess() {
         final int count = mPendingUpdates.size();
         for (int i = 0; i < count; i++) {
-           AdapterHelper.UpdateOp op = mPendingUpdates.get(i);
+            AdapterHelper.UpdateOp op = mPendingUpdates.get(i);
             switch (op.cmd) {
                 case AdapterHelper.UpdateOp.ADD:
                     applyAdd(op);
+                    break;
+                case AdapterHelper.UpdateOp.REMOVE:
+                    applyRemove(op);
                     break;
             }
             if (mOnItemProcessedCallback != null) {
@@ -49,7 +68,13 @@ public class AdapterHelper implements OpReorderer.Callback {
         }
         mPendingUpdates.clear();
     }
+
+    private void applyRemove(UpdateOp op) {
+        postponeAndUpdateViewHolders(op);
+    }
+
     final ArrayList<AdapterHelper.UpdateOp> mPostponedList = new ArrayList<AdapterHelper.UpdateOp>();
+
     private void postponeAndUpdateViewHolders(AdapterHelper.UpdateOp op) {
 
         mPostponedList.add(op);
@@ -57,10 +82,15 @@ public class AdapterHelper implements OpReorderer.Callback {
             case AdapterHelper.UpdateOp.ADD:
                 mCallback.offsetPositionsForAdd(op.positionStart, op.itemCount);
                 break;
+            case AdapterHelper.UpdateOp.REMOVE:
+                mCallback.offsetPositionsForRemovingLaidOutOrNewView(op.positionStart,
+                        op.itemCount);
+                break;
             default:
                 throw new IllegalArgumentException("Unknown update op type for " + op);
         }
     }
+
     private void applyAdd(UpdateOp op) {
         postponeAndUpdateViewHolders(op);
     }
@@ -136,6 +166,7 @@ public class AdapterHelper implements OpReorderer.Callback {
 
         void offsetPositionsForAdd(int positionStart, int itemCount);
 
+        void offsetPositionsForRemovingLaidOutOrNewView(int positionStart, int itemCount);
     }
 
 }
