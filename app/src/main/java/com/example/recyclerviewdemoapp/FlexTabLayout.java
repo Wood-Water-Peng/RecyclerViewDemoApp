@@ -50,6 +50,8 @@ public class FlexTabLayout extends ViewGroup {
 
     private int widthUsed = 0;
     private int totalHeight = 0;
+    private int mInterceptRequestLayoutDepth;
+    private boolean mLayoutWasDefered = false;
 
     public int getWidthUsed() {
         return widthUsed;
@@ -132,8 +134,32 @@ public class FlexTabLayout extends ViewGroup {
 
     void animateAppearance(@NonNull FlexItemHolder itemHolder,
                            @Nullable ItemAnimator.ItemHolderInfo preLayoutInfo, @NonNull ItemAnimator.ItemHolderInfo postLayoutInfo) {
+        itemHolder.setIsRecyclable(false);
         if (mItemAnimator.animateAppearance(itemHolder, preLayoutInfo, postLayoutInfo)) {
             postAnimationRunner();
+        }
+    }
+
+    @Override
+    public void requestLayout() {
+        if (mInterceptRequestLayoutDepth == 0) {
+            super.requestLayout();
+        } else {
+            mLayoutWasDefered = true;
+        }
+    }
+
+    void startInterceptRequestLayout() {
+        mInterceptRequestLayoutDepth++;
+        mLayoutWasDefered = true;
+    }
+
+    void stopInterceptRequestLayout() {
+        if (mInterceptRequestLayoutDepth > 0) {
+            mInterceptRequestLayoutDepth--;
+        }
+        if (mInterceptRequestLayoutDepth == 0) {
+            mLayoutWasDefered = false;
         }
     }
 
@@ -151,6 +177,11 @@ public class FlexTabLayout extends ViewGroup {
                 @Override
                 public void processAppeared(FlexItemHolder viewHolder, @Nullable ItemAnimator.ItemHolderInfo preInfo, ItemAnimator.ItemHolderInfo postInfo) {
                     animateAppearance(viewHolder, preInfo, postInfo);
+                }
+
+                @Override
+                public void processPersistent(FlexItemHolder viewHolder, ItemAnimator.ItemHolderInfo preInfo, ItemAnimator.ItemHolderInfo postInfo) {
+
                 }
             };
 
@@ -636,9 +667,22 @@ public class FlexTabLayout extends ViewGroup {
     private void dispatchLayoutStep1() {
         mState.assertLayoutStep(State.STEP_START);
         mState.mIsMeasuring = false;
+        startInterceptRequestLayout();
         mState.mItemCount = mAdapter.getItemCount();
         processAdapterUpdatesAndSetAnimationFlags();
         mState.mLayoutStep = State.STEP_LAYOUT;
+        if (mState.mRunSimpleAnimations) {
+            // Step 0: Find out where all non-removed items are, pre-layout
+            int count = mChildHelper.getChildCount();
+            for (int i = 0; i < count; ++i) {
+                final FlexItemHolder holder = getChildViewHolderInt(mChildHelper.getChildAt(i));
+                final ItemAnimator.ItemHolderInfo animationInfo = mItemAnimator
+                        .recordPreLayoutInformation(mState, holder,
+                                0, new Object());
+                mViewInfoStore.addToPreLayout(holder, animationInfo);
+            }
+        }
+        stopInterceptRequestLayout();
     }
 
     /**
@@ -648,11 +692,13 @@ public class FlexTabLayout extends ViewGroup {
      * 真正对child进行测量和布局
      */
     private void dispatchLayoutStep2() {
+        startInterceptRequestLayout();
         mState.assertLayoutStep(State.STEP_LAYOUT | State.STEP_ANIMATIONS);
         mState.mLayoutStep = State.STEP_ANIMATIONS;
         mState.mItemCount = mAdapter.getItemCount();
         onLayoutChildren();
         //根据child的布局确认parent
+        stopInterceptRequestLayout();
     }
 
     /**
@@ -666,9 +712,11 @@ public class FlexTabLayout extends ViewGroup {
      */
     private void dispatchLayoutStep3() {
         mState.assertLayoutStep(State.STEP_ANIMATIONS);
+        startInterceptRequestLayout();
         mState.mLayoutStep = State.STEP_START;
         if (mState.mRunSimpleAnimations) {
-            for (int i = mChildHelper.getChildCount() - 1; i >= 0; i--) {
+            int childCount = mChildHelper.getChildCount();
+            for (int i = childCount - 1; i >= 0; i--) {
                 FlexItemHolder holder = getChildViewHolderInt(mChildHelper.getChildAt(i));
                 final ItemAnimator.ItemHolderInfo animationInfo = mItemAnimator
                         .recordPostLayoutInformation(mState, holder);
@@ -683,6 +731,7 @@ public class FlexTabLayout extends ViewGroup {
             // Step 4: Process view info lists and trigger animations
             mViewInfoStore.process(mViewInfoProcessCallback);
         }
+        stopInterceptRequestLayout();
     }
 
     /**
@@ -723,7 +772,7 @@ public class FlexTabLayout extends ViewGroup {
         if (state == null) return 0;
         int size = state.rowMaxHeight.size();
         if (size == 0) {
-            return 0;
+            return getPaddingTop();
         }
         int startHeight = state.rowMaxHeight.get(rowIndex, 0);
         if (state.curRowIndex == 0) {
@@ -893,6 +942,12 @@ public class FlexTabLayout extends ViewGroup {
     public abstract static class FlexItemHolder {
 
         /**
+         * This ViewHolder has been bound to a position; mPosition, mItemId and mItemViewType
+         * are all valid.
+         */
+        static final int FLAG_BOUND = 1 << 0;
+
+        /**
          * The data this ViewHolder's view reflects is stale and needs to be rebound
          * by the adapter. mPosition and mItemId are consistent.
          */
@@ -902,6 +957,12 @@ public class FlexTabLayout extends ViewGroup {
          * data set. Its view may still be used for things like outgoing animations.
          */
         static final int FLAG_REMOVED = 1 << 3;
+
+        /**
+         * This ViewHolder should not be recycled. This flag is set via setIsRecyclable()
+         * and is intended to keep views around during animations.
+         */
+        static final int FLAG_NOT_RECYCLABLE = 1 << 4;
 
         /**
          * Used by ItemAnimator when a ViewHolder appears in pre-layout
@@ -938,6 +999,10 @@ public class FlexTabLayout extends ViewGroup {
             if (itemView.getLayoutParams() != null) {
                 ((FlexTabLayout.LayoutParams) itemView.getLayoutParams()).mInsetsDirty = true;
             }
+        }
+
+        public final void setIsRecyclable(boolean recyclable) {
+            mFlags |= FLAG_NOT_RECYCLABLE;
         }
     }
 
@@ -1123,8 +1188,8 @@ public class FlexTabLayout extends ViewGroup {
         public static final int FLAG_APPEARED_IN_PRE_LAYOUT =
                 FlexItemHolder.FLAG_APPEARED_IN_PRE_LAYOUT;
 
-        private long mAddDuration = 120;
-        private long mRemoveDuration = 120;
+        private long mAddDuration = 1200;
+        private long mRemoveDuration = 1200;
 
         public abstract boolean animateDisappearance(@NonNull FlexItemHolder viewHolder,
                                                      @NonNull ItemHolderInfo preLayoutInfo, @Nullable ItemHolderInfo postLayoutInfo);
@@ -1161,6 +1226,10 @@ public class FlexTabLayout extends ViewGroup {
         @NonNull
         public ItemAnimator.ItemHolderInfo obtainHolderInfo() {
             return new ItemAnimator.ItemHolderInfo();
+        }
+
+        public ItemHolderInfo recordPreLayoutInformation(State mState, FlexItemHolder holder, int i, Object o) {
+            return obtainHolderInfo().setFrom(holder);
         }
 
         public static class ItemHolderInfo {

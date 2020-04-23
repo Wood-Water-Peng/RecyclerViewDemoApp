@@ -25,7 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private ActivityMainBinding viewBinding;
     private List<TestBean> testBeanList = new ArrayList<>();
-    private static final int LEN = 12;
+    private static final int LEN = 8;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {

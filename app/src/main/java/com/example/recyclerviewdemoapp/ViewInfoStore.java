@@ -5,6 +5,11 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.collection.LongSparseArray;
 import androidx.collection.SimpleArrayMap;
+import androidx.recyclerview.widget.RecyclerView;
+
+import static com.example.recyclerviewdemoapp.ViewInfoStore.InfoRecord.FLAG_POST;
+import static com.example.recyclerviewdemoapp.ViewInfoStore.InfoRecord.FLAG_PRE;
+
 
 /**
  * This class abstracts all tracking for Views to run animations.
@@ -27,6 +32,12 @@ public class ViewInfoStore {
             if ((record.flags & InfoRecord.FLAG_APPEAR_PRE_AND_POST) == InfoRecord.FLAG_APPEAR_PRE_AND_POST) {
                 // Appeared in the layout but not in the adapter (e.g. entered the viewport)
                 callback.processAppeared(viewHolder, record.preInfo, record.postInfo);
+            } else if ((record.flags & InfoRecord.FLAG_PRE_AND_POST) == InfoRecord.FLAG_PRE_AND_POST) {
+                // Persistent in both passes. Animate persistence
+                callback.processPersistent(viewHolder, record.preInfo, record.postInfo);
+            }else if ((record.flags & FLAG_POST) != 0) {
+                // Was not in pre-layout, been added to post layout
+                callback.processAppeared(viewHolder, record.preInfo, record.postInfo);
             }
         }
     }
@@ -41,6 +52,8 @@ public class ViewInfoStore {
         mOldChangedHolders.put(key, holder);
     }
 
+
+
     /**
      * Queries the oldChangeHolder list for the given key. If they are not tracked, simply returns
      * null.
@@ -50,6 +63,22 @@ public class ViewInfoStore {
      */
     FlexTabLayout.FlexItemHolder getFromOldChangeHolders(long key) {
         return mOldChangedHolders.get(key);
+    }
+
+    /**
+     * Adds the item information to the prelayout tracking
+     *
+     * @param holder The ViewHolder whose information is being saved
+     * @param info   The information to save
+     */
+    void addToPreLayout(FlexTabLayout.FlexItemHolder holder, FlexTabLayout.ItemAnimator.ItemHolderInfo info) {
+        ViewInfoStore.InfoRecord record = mLayoutHolderMap.get(holder);
+        if (record == null) {
+            record = ViewInfoStore.InfoRecord.obtain();
+            mLayoutHolderMap.put(holder, record);
+        }
+        record.preInfo = info;
+        record.flags |= FLAG_PRE;
     }
 
     /**
@@ -65,7 +94,7 @@ public class ViewInfoStore {
             mLayoutHolderMap.put(holder, record);
         }
         record.postInfo = info;
-        record.flags |= InfoRecord.FLAG_POST;
+        record.flags |= FLAG_POST;
     }
 
     static class InfoRecord {
@@ -101,5 +130,7 @@ public class ViewInfoStore {
 
         void processAppeared(FlexTabLayout.FlexItemHolder viewHolder, @Nullable FlexTabLayout.ItemAnimator.ItemHolderInfo preInfo,
                              FlexTabLayout.ItemAnimator.ItemHolderInfo postInfo);
+
+        void processPersistent(FlexTabLayout.FlexItemHolder viewHolder, FlexTabLayout.ItemAnimator.ItemHolderInfo preInfo, FlexTabLayout.ItemAnimator.ItemHolderInfo postInfo);
     }
 }
