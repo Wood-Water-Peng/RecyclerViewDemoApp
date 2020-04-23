@@ -77,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
                 return testBeanList.size();
             }
         };
+        viewBinding.flexTabLayout.setLayoutManager(new FlexHorizontalLayoutManager());
         viewBinding.flexTabLayout.setAdapter(adapter);
         viewBinding.buttonJump.setOnClickListener(new View.OnClickListener() {
             @Override

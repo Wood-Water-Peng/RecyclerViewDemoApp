@@ -82,6 +82,16 @@ public class ChildHelper {
         mCallback.detachViewFromParent(index);
     }
 
+    public void addView(View child, int index, boolean hidden) {
+        final int offset;
+        if (index < 0) {
+            offset = mCallback.getChildCount();
+        }else {
+            offset=0;
+        }
+        mCallback.addView(child, offset);
+    }
+
     interface Callback {
 
         int getChildCount();
