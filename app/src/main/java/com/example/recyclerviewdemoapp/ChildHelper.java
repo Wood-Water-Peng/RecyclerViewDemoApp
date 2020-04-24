@@ -1,7 +1,9 @@
 package com.example.recyclerviewdemoapp;
 
 
+import android.util.Log;
 import android.view.View;
+import android.view.ViewGroup;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -92,6 +94,32 @@ public class ChildHelper {
         mCallback.addView(child, offset);
     }
 
+    void addView(View child, boolean hidden) {
+        addView(child, -1, hidden);
+    }
+
+    /**
+     * Attaches the provided view to the underlying ViewGroup.
+     *
+     * @param child        Child to attach.
+     * @param index        Index of the child to attach in regular perspective.
+     * @param layoutParams LayoutParams for the child.
+     * @param hidden       If set to true, this item will be invisible to the regular methods.
+     */
+    void attachViewToParent(View child, int index, ViewGroup.LayoutParams layoutParams,
+                            boolean hidden) {
+        final int offset;
+        if (index < 0) {
+            offset = mCallback.getChildCount();
+        } else {
+            offset=index;
+        }
+        if (hidden) {
+            hideViewInternal(child);
+        }
+        mCallback.attachViewToParent(child, offset, layoutParams);
+    }
+
     interface Callback {
 
         int getChildCount();
@@ -111,6 +139,8 @@ public class ChildHelper {
         void onLeftHiddenState(View child);
 
         void detachViewFromParent(int index);
+
+        void attachViewToParent(View child, int offset, ViewGroup.LayoutParams layoutParams);
     }
 }
 

@@ -25,7 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private ActivityMainBinding viewBinding;
     private List<TestBean> testBeanList = new ArrayList<>();
-    private static final int LEN = 8;
+    private static final int LEN = 3;
     private FlexTabLayout.Adapter adapter;
 
     @Override
@@ -77,8 +77,8 @@ public class MainActivity extends AppCompatActivity {
                 return testBeanList.size();
             }
         };
-        viewBinding.flexTabLayout.setLayoutManager(new FlexHorizontalLayoutManager());
         viewBinding.flexTabLayout.setAdapter(adapter);
+        viewBinding.flexTabLayout.setLayoutManager(new FlexHorizontalLayoutManager());
         viewBinding.buttonJump.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {

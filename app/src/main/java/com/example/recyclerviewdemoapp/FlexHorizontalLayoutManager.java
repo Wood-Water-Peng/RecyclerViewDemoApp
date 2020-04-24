@@ -72,6 +72,8 @@ public class FlexHorizontalLayoutManager extends FlexTabLayout.LayoutManager {
         int startHeight = getStartRowHeight(state, state.curRowIndex);
         FlexTabLayout.LayoutParams params = (FlexTabLayout.LayoutParams) child.getLayoutParams();
         int maxRowWidth = getWidth() - getPaddingLeft() - getPaddingRight();
+
+        //测量宽度并填充
         int childNeedWidth;
         if (state.curChildIndex == 0) {
             childNeedWidth = child.getMeasuredWidth() + params.leftMargin + params.rightMargin;
@@ -100,6 +102,7 @@ public class FlexHorizontalLayoutManager extends FlexTabLayout.LayoutManager {
             state.totalWidth = Math.min(View.MeasureSpec.getSize(getwSpec()), state.totalWidth + childNeedWidth);
         }
 
+        //测量高度并填充
         int childNeedHeight;
         if (state.curRowIndex > 0) {
             childNeedHeight = child.getMeasuredHeight() + params.topMargin + params.bottomMargin + getVerticalSpace();
@@ -107,7 +110,7 @@ public class FlexHorizontalLayoutManager extends FlexTabLayout.LayoutManager {
             childNeedHeight = child.getMeasuredHeight() + params.topMargin + params.bottomMargin;
         }
         if (state.curChildIndex == 0) {
-            state.totalHeight = childNeedHeight;
+            state.totalHeight = childNeedHeight + getPaddingTop() + getPaddingBottom();
             state.lastChildMaxHeight = childNeedHeight;
         }
         state.curRowMaxHeight = state.lastChildMaxHeight;
@@ -132,11 +135,8 @@ public class FlexHorizontalLayoutManager extends FlexTabLayout.LayoutManager {
         params.rowIndex = state.curRowIndex;
         params.columnIndex = state.columnCount.get(params.rowIndex, 0) + 1;
         state.curChildIndex++;
+        addView(child);
         child.layout(left, top, right, bottom);
-        if (child.getParent() == null) {
-            mFlexTabLayout.addView(child, params);
-        }
-        Log.i(TAG, "childNeedWidth:---" + childNeedWidth);
     }
 
     public void measureChildWithMargins(@NonNull View child) {

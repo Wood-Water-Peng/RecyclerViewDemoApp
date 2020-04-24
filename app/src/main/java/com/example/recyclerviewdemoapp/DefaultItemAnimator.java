@@ -39,7 +39,7 @@ public class DefaultItemAnimator extends SimpleItemAnimator {
     public boolean animateRemove(FlexTabLayout.FlexItemHolder holder) {
         resetAnimation(holder);
         mPendingRemovals.add(holder);
-        return false;
+        return true;
     }
 
     void animateAddImpl(final FlexTabLayout.FlexItemHolder holder) {
@@ -79,6 +79,7 @@ public class DefaultItemAnimator extends SimpleItemAnimator {
                     public void onAnimationEnd(Animator animator) {
                         animation.setListener(null);
                         view.setAlpha(1);
+                        mRemoveAnimations.remove(holder);
                     }
                 }).start();
     }
@@ -103,7 +104,8 @@ public class DefaultItemAnimator extends SimpleItemAnimator {
         for (FlexTabLayout.FlexItemHolder holder : mPendingRemovals) {
             animateRemoveImpl(holder);
         }
-
+        mPendingRemovals.clear();
+        // Next, move stuff
         if (additionsPending) {
             final ArrayList<FlexTabLayout.FlexItemHolder> additions = new ArrayList<>();
             additions.addAll(mPendingAdditions);
@@ -122,5 +124,17 @@ public class DefaultItemAnimator extends SimpleItemAnimator {
 
             adder.run();
         }
+    }
+
+    @Override
+    public boolean isRunning() {
+        return (!mPendingAdditions.isEmpty()
+                || !mPendingRemovals.isEmpty()
+
+                || !mRemoveAnimations.isEmpty()
+                || !mAddAnimations.isEmpty()
+
+                || !mAdditionsList.isEmpty());
+
     }
 }

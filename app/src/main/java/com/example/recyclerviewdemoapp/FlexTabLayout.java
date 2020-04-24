@@ -2,6 +2,7 @@ package com.example.recyclerviewdemoapp;
 
 import android.content.Context;
 import android.database.Observable;
+import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.os.Build;
 import android.util.AttributeSet;
@@ -51,26 +52,10 @@ public class FlexTabLayout extends ViewGroup {
     //纵向间距，不包括头尾
     private static int VERTICAL_SPACE = 0;
 
-    private int widthUsed = 0;
-    private int totalHeight = 0;
     private int mInterceptRequestLayoutDepth;
     private boolean mLayoutWasDefered = false;
 
-    public int getWidthUsed() {
-        return widthUsed;
-    }
-
-    public void setWidthUsed(int widthUsed) {
-        this.widthUsed = widthUsed;
-    }
-
-    public int getHeightUsed() {
-        return totalHeight;
-    }
-
-    public void setHeightUsed(int totalHeight) {
-        this.totalHeight = totalHeight;
-    }
+    private int mLayoutOrScrollCounter = 0;
 
     LayoutManager mLayout;
 
@@ -105,6 +90,7 @@ public class FlexTabLayout extends ViewGroup {
         if (adapter != null) {
             this.mAdapter = adapter;
             mAdapter.registerAdapterDataObserver(mObserver);
+            requestLayout();
         }
     }
 
@@ -147,7 +133,7 @@ public class FlexTabLayout extends ViewGroup {
 
     void animateDisappearance(@NonNull FlexItemHolder itemHolder,
                               @Nullable ItemAnimator.ItemHolderInfo preLayoutInfo, @NonNull ItemAnimator.ItemHolderInfo postLayoutInfo) {
-//        addAnimatingView(holder);
+        addAnimatingView(itemHolder);
         if (mItemAnimator.animateDisappearance(itemHolder, preLayoutInfo, postLayoutInfo)) {
             postAnimationRunner();
         }
@@ -224,7 +210,10 @@ public class FlexTabLayout extends ViewGroup {
 
             @Override
             public void addView(View child, int index) {
-                FlexTabLayout.this.addView(child, index);
+                if (child.getParent() == null) {
+                    FlexTabLayout.this.addView(child, index);
+
+                }
             }
 
             @Override
@@ -246,7 +235,7 @@ public class FlexTabLayout extends ViewGroup {
             @Override
             public void removeAllViews() {
                 //清除动画
-                FlexTabLayout.this.removeAllViews();
+//                FlexTabLayout.this.removeAllViews();
             }
 
             @Override
@@ -261,7 +250,33 @@ public class FlexTabLayout extends ViewGroup {
 
             @Override
             public void detachViewFromParent(int index) {
+                Log.i(TAG, "detachViewFromParent index:" + index);
+                final View view = getChildAt(index);
+                if (view != null) {
+                    final FlexTabLayout.FlexItemHolder vh = getChildViewHolderInt(view);
+                    if (vh != null) {
+                        if (vh.isTmpDetached()) {
+                            throw new IllegalArgumentException("called detach on an already"
+                                    + " detached child ");
+                        }
+                        vh.addFlags(FlexTabLayout.FlexItemHolder.FLAG_TMP_DETACHED);
+                    }
+                }
                 FlexTabLayout.this.detachViewFromParent(index);
+            }
+
+            @Override
+            public void attachViewToParent(View child, int index, ViewGroup.LayoutParams layoutParams) {
+                Log.i(TAG, "attachViewToParent index:" + index);
+                final FlexItemHolder vh = getChildViewHolderInt(child);
+                if (vh != null) {
+                    if (!vh.isTmpDetached()) {
+                        throw new IllegalArgumentException("Called attach on a child which is not"
+                                + " detached: ");
+                    }
+                    vh.clearTmpDetachFlag();
+                }
+                FlexTabLayout.this.attachViewToParent(child, index, layoutParams);
             }
         });
     }
@@ -312,6 +327,17 @@ public class FlexTabLayout extends ViewGroup {
 
     }
 
+    private void addAnimatingView(FlexItemHolder viewHolder) {
+        final View view = viewHolder.itemView;
+        final boolean alreadyParented = view.getParent() == this;
+        if (viewHolder.isTmpDetached()) {
+            // re-attach
+            mChildHelper.attachViewToParent(view, -1, view.getLayoutParams(), true);
+        } else if (!alreadyParented) {
+            mChildHelper.addView(view, true);
+        }
+    }
+
     private void initAdapterManager() {
         mAdapterHelper = new AdapterHelper(new AdapterHelper.Callback() {
             @Override
@@ -329,18 +355,6 @@ public class FlexTabLayout extends ViewGroup {
         });
     }
 
-    //设置自己的测量尺寸和模式
-    void setMeasureSpecs(int wSpec, int hSpec) {
-        mWidthSpec = wSpec;
-        mHeightSpec = hSpec;
-
-        mWidth = MeasureSpec.getSize(wSpec);
-        mWidthMode = MeasureSpec.getMode(wSpec);
-
-        mHeight = MeasureSpec.getSize(hSpec);
-        mHeightMode = MeasureSpec.getMode(hSpec);
-
-    }
 
     /**
      * An implementation of {@link View#onMeasure(int, int)} to fall back to in various scenarios
@@ -389,14 +403,12 @@ public class FlexTabLayout extends ViewGroup {
         if (mState.mLayoutStep == State.STEP_START) {
             dispatchLayoutStep1();
         }
-        setMeasureSpecs(widthMeasureSpec, heightMeasureSpec);
+        mLayout.setMeasureSpecs(widthMeasureSpec, heightMeasureSpec);
         mState.mIsMeasuring = true;
         //对child执行测量
         dispatchLayoutStep2();
-        mLayout.setMeasuredDimensionFromChildren(widthMeasureSpec, heightMeasureSpec);
+        mLayout.setMeasuredDimensionFromChildren();
     }
-
-    final Rect mTempRect = new Rect();
 
 
     static void getDecoratedBoundsWithMarginsInt(View view, Rect outBounds) {
@@ -502,7 +514,7 @@ public class FlexTabLayout extends ViewGroup {
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         dispatchLayout();
         mFirstLayoutComplete = true;
-
+        Log.i(TAG, "onLayout-------------");
     }
 
     private void dispatchLayout() {
@@ -556,6 +568,8 @@ public class FlexTabLayout extends ViewGroup {
         mState.assertLayoutStep(State.STEP_START);
         mState.mIsMeasuring = false;
         startInterceptRequestLayout();
+        mViewInfoStore.clear();
+        onEnterLayoutOrScroll();
         mState.mItemCount = mAdapter.getItemCount();
         processAdapterUpdatesAndSetAnimationFlags();
         mState.mLayoutStep = State.STEP_LAYOUT;
@@ -570,6 +584,7 @@ public class FlexTabLayout extends ViewGroup {
                 mViewInfoStore.addToPreLayout(holder, animationInfo);
             }
         }
+        onExitLayoutOrScroll();
         stopInterceptRequestLayout();
     }
 
@@ -581,6 +596,7 @@ public class FlexTabLayout extends ViewGroup {
      */
     private void dispatchLayoutStep2() {
         startInterceptRequestLayout();
+        onEnterLayoutOrScroll();
         mState.assertLayoutStep(State.STEP_LAYOUT | State.STEP_ANIMATIONS);
         mState.mItemCount = mAdapter.getItemCount();
         // Step 2: Run layout
@@ -588,6 +604,7 @@ public class FlexTabLayout extends ViewGroup {
         mLayout.onLayoutChildren(this, mState);
         mState.mRunSimpleAnimations = mState.mRunSimpleAnimations && mItemAnimator != null;
         mState.mLayoutStep = State.STEP_ANIMATIONS;
+        onExitLayoutOrScroll();
         stopInterceptRequestLayout();
     }
 
@@ -603,6 +620,7 @@ public class FlexTabLayout extends ViewGroup {
     private void dispatchLayoutStep3() {
         mState.assertLayoutStep(State.STEP_ANIMATIONS);
         startInterceptRequestLayout();
+        onEnterLayoutOrScroll();
         mState.mLayoutStep = State.STEP_START;
         if (mState.mRunSimpleAnimations) {
             int childCount = mChildHelper.getChildCount();
@@ -621,6 +639,7 @@ public class FlexTabLayout extends ViewGroup {
             // Step 4: Process view info lists and trigger animations
             mViewInfoStore.process(mViewInfoProcessCallback);
         }
+        onExitLayoutOrScroll();
         stopInterceptRequestLayout();
     }
 
@@ -634,7 +653,7 @@ public class FlexTabLayout extends ViewGroup {
 
 
     public void detachAttachedViews() {
-        int childCount = mChildHelper != null ? mChildHelper.getChildCount() : 0;
+        int childCount = getChildCount();
         for (int i = childCount - 1; i >= 0; i--) {
             final View v = getChildAt(i);
             detachViewAt(i);
@@ -750,6 +769,8 @@ public class FlexTabLayout extends ViewGroup {
          */
         static final int FLAG_NOT_RECYCLABLE = 1 << 4;
 
+        static final int FLAG_TMP_DETACHED = 1 << 8;
+
         /**
          * Used by ItemAnimator when a ViewHolder appears in pre-layout
          */
@@ -771,6 +792,10 @@ public class FlexTabLayout extends ViewGroup {
             return (mFlags & FLAG_UPDATE) != 0;
         }
 
+        boolean isTmpDetached() {
+            return (mFlags & FLAG_TMP_DETACHED) != 0;
+        }
+
         void offsetPosition(int offset, boolean applyToPreLayout) {
             if (mOldPosition == NO_POSITION) {
                 mOldPosition = mPosition;
@@ -789,8 +814,8 @@ public class FlexTabLayout extends ViewGroup {
 
         void flagRemovedAndOffsetPosition(int mNewPosition, int offset, boolean applyToPreLayout) {
             addFlags(FlexItemHolder.FLAG_REMOVED);
-            offsetPosition(offset, applyToPreLayout);
-            mPosition = mNewPosition;
+//            offsetPosition(offset, applyToPreLayout);
+//            mPosition = mNewPosition;
         }
 
         void addFlags(int flags) {
@@ -799,6 +824,10 @@ public class FlexTabLayout extends ViewGroup {
 
         public final void setIsRecyclable(boolean recyclable) {
             mFlags |= FLAG_NOT_RECYCLABLE;
+        }
+
+        public void clearTmpDetachFlag() {
+            mFlags = mFlags & ~FLAG_TMP_DETACHED;
         }
     }
 
@@ -911,9 +940,26 @@ public class FlexTabLayout extends ViewGroup {
         mAdapterHelper.preProcess();
     }
 
+    void onEnterLayoutOrScroll() {
+        mLayoutOrScrollCounter++;
+    }
+
+    void onExitLayoutOrScroll() {
+        mLayoutOrScrollCounter--;
+        if (mLayoutOrScrollCounter < 1) {
+            if (mLayoutOrScrollCounter < 0) {
+                throw new IllegalStateException("layout or scroll counter cannot go below zero."
+                        + "Some calls are not matching");
+            }
+            mLayoutOrScrollCounter = 0;
+
+        }
+    }
+
     @Override
     protected void onAttachedToWindow() {
         super.onAttachedToWindow();
+        mLayoutOrScrollCounter = 0;
         mIsAttached = true;
         mFirstLayoutComplete = mFirstLayoutComplete && !isLayoutRequested();
     }
@@ -1036,6 +1082,8 @@ public class FlexTabLayout extends ViewGroup {
 
         public abstract void runPendingAnimations();
 
+        public abstract boolean isRunning();
+
         public @NonNull
         ItemAnimator.ItemHolderInfo recordPostLayoutInformation(@NonNull State state,
                                                                 @NonNull FlexItemHolder viewHolder) {
@@ -1116,6 +1164,14 @@ public class FlexTabLayout extends ViewGroup {
         private int wSpec;
         private int hSpec;
 
+        public int getwSpec() {
+            return wSpec;
+        }
+
+        public int gethSpec() {
+            return hSpec;
+        }
+
         /**
          * On M+, an unspecified measure spec may include a hint which we can use. On older platforms,
          * this value might be garbage. To save LayoutManagers from it, RecyclerView sets the size to
@@ -1155,17 +1211,11 @@ public class FlexTabLayout extends ViewGroup {
             }
         }
 
-        public int getwSpec() {
-            return wSpec;
-        }
 
-        public int gethSpec() {
-            return hSpec;
-        }
-
-        void setMeasuredDimensionFromChildren(int widthSpec, int heightSpec) {
-            int width = getMeasureWidthFromChildren(mFlexTabLayout.mState, widthSpec, heightSpec);
-            int height = getMeasureHeightFromChildren(mFlexTabLayout.mState, widthSpec, heightSpec);
+        void setMeasuredDimensionFromChildren() {
+            int width = getMeasureWidthFromChildren(mFlexTabLayout.mState, wSpec, hSpec);
+            int height = getMeasureHeightFromChildren(mFlexTabLayout.mState, wSpec, hSpec);
+            Log.i(TAG, "setMeasuredDimensionFromChildren width:" + width + "---height:" + height);
             mFlexTabLayout.setMeasuredDimension(width, height);
         }
 
@@ -1233,7 +1283,12 @@ public class FlexTabLayout extends ViewGroup {
         }
 
         private void addViewInt(View child, int index, boolean disappearing) {
-            mChildHelper.addView(child, index, false);
+            if (child.getParent() == null) {
+                mChildHelper.addView(child, index, false);
+            } else {
+                final LayoutParams lp = (LayoutParams) child.getLayoutParams();
+                mChildHelper.attachViewToParent(child, index, lp, false);
+            }
         }
 
         public int getWidthMode() {
@@ -1328,4 +1383,16 @@ public class FlexTabLayout extends ViewGroup {
     }
 
 
+    @Override
+    public void draw(Canvas canvas) {
+        super.draw(canvas);
+        boolean needsInvalidate = false;
+        if (mItemAnimator != null && mItemAnimator.isRunning()) {
+            needsInvalidate = true;
+        }
+        if (needsInvalidate) {
+            ViewCompat.postInvalidateOnAnimation(this);
+            Log.i(TAG, "draw needsInvalidate:" + needsInvalidate);
+        }
+    }
 }

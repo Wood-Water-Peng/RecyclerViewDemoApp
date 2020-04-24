@@ -7,7 +7,7 @@ import androidx.recyclerview.widget.RecyclerView;
 public abstract class SimpleItemAnimator extends FlexTabLayout.ItemAnimator {
     @Override
     public boolean animateDisappearance(@NonNull FlexTabLayout.FlexItemHolder viewHolder, @NonNull ItemHolderInfo preLayoutInfo, @Nullable ItemHolderInfo postLayoutInfo) {
-        return false;
+        return animateRemove(viewHolder);
     }
 
     @Override
