@@ -25,7 +25,7 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private ActivityMainBinding viewBinding;
     private List<TestBean> testBeanList = new ArrayList<>();
-    private static final int LEN = 3;
+    private static final int LEN = 2;
     private FlexTabLayout.Adapter adapter;
 
     @Override
@@ -93,12 +93,22 @@ public class MainActivity extends AppCompatActivity {
                 adapter.notifyItemInserted(testBeanList.size());
             }
         });
-        viewBinding.buttonRemove.setOnClickListener(new View.OnClickListener() {
+        viewBinding.buttonRemoveOne.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 int removedIndex = testBeanList.size() - 1;
+                if (removedIndex < 0) return;
                 testBeanList.remove(removedIndex);
                 adapter.notifyItemRemoved(removedIndex);
+            }
+        });
+        viewBinding.buttonRemoveAll.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                for (int i = 0; i < testBeanList.size(); i++) {
+                    testBeanList.remove(i);
+                    adapter.notifyItemRemoved(i);
+                }
             }
         });
     }

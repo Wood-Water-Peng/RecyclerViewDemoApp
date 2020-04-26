@@ -79,10 +79,19 @@ public class DefaultItemAnimator extends SimpleItemAnimator {
                     public void onAnimationEnd(Animator animator) {
                         animation.setListener(null);
                         view.setAlpha(1);
+                        dispatchRemoveFinished(holder);
                         mRemoveAnimations.remove(holder);
+                        dispatchFinishedWhenDone();
                     }
                 }).start();
     }
+
+    void dispatchFinishedWhenDone() {
+        if (!isRunning()) {
+            dispatchAnimationsFinished();
+        }
+    }
+
 
     private void resetAnimation(FlexTabLayout.FlexItemHolder holder) {
         if (sDefaultInterpolator == null) {

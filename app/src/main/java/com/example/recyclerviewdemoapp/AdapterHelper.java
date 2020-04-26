@@ -9,6 +9,7 @@ public class AdapterHelper implements OpReorderer.Callback {
     final ArrayList<AdapterHelper.UpdateOp> mPendingUpdates = new ArrayList<AdapterHelper.UpdateOp>();
     Runnable mOnItemProcessedCallback;
     private int mExistingUpdateTypes = 0;
+    public static final String TAG = "AdapterHelper";
 
     public AdapterHelper(AdapterHelper.Callback mCallback) {
         this.mCallback = mCallback;
@@ -52,6 +53,7 @@ public class AdapterHelper implements OpReorderer.Callback {
 
     void preProcess() {
         final int count = mPendingUpdates.size();
+        Log.i(TAG, "preProcess count:"+count);
         for (int i = 0; i < count; i++) {
             AdapterHelper.UpdateOp op = mPendingUpdates.get(i);
             switch (op.cmd) {
@@ -70,6 +72,7 @@ public class AdapterHelper implements OpReorderer.Callback {
     }
 
     private void applyRemove(UpdateOp op) {
+        Log.i(TAG, "applyRemove remove");
         postponeAndUpdateViewHolders(op);
     }
 
@@ -83,6 +86,7 @@ public class AdapterHelper implements OpReorderer.Callback {
                 mCallback.offsetPositionsForAdd(op.positionStart, op.itemCount);
                 break;
             case AdapterHelper.UpdateOp.REMOVE:
+                Log.i(TAG, "postponeAndUpdateViewHolders remove");
                 mCallback.offsetPositionsForRemovingLaidOutOrNewView(op.positionStart,
                         op.itemCount);
                 break;

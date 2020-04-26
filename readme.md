@@ -15,3 +15,5 @@
 待解决问题：
 
 1. onLayout调用多次，attachViewToParent没有执行，第一次布局阶段不应该detachView
+
+2.dispatchLayoutStep3的时候，正确的应该是childCount=0，断点addView

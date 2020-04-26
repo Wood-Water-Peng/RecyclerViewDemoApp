@@ -1,5 +1,7 @@
 package com.example.recyclerviewdemoapp;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
@@ -7,6 +9,7 @@ import androidx.collection.LongSparseArray;
 import androidx.collection.SimpleArrayMap;
 import androidx.recyclerview.widget.RecyclerView;
 
+import static com.example.recyclerviewdemoapp.FlexTabLayout.TAG;
 import static com.example.recyclerviewdemoapp.ViewInfoStore.InfoRecord.FLAG_POST;
 import static com.example.recyclerviewdemoapp.ViewInfoStore.InfoRecord.FLAG_PRE;
 
@@ -18,6 +21,7 @@ public class ViewInfoStore {
     /**
      * View data records for pre-layout
      */
+    public static final String TAG="ViewInfoStore";
     @VisibleForTesting
     final SimpleArrayMap<FlexTabLayout.FlexItemHolder, ViewInfoStore.InfoRecord> mLayoutHolderMap =
             new SimpleArrayMap<>();
@@ -40,6 +44,7 @@ public class ViewInfoStore {
                 callback.processAppeared(viewHolder, record.preInfo, record.postInfo);
             } else if ((ViewInfoStore.InfoRecord.FLAG_PRE) != 0) {
                 // Was in pre-layout, never been added to post layout
+                Log.i(TAG,"process processDisappeared index:"+viewHolder.mPosition);
                 callback.processDisappeared(viewHolder, record.preInfo, null);
             }
         }
@@ -74,6 +79,7 @@ public class ViewInfoStore {
      * @param info   The information to save
      */
     void addToPreLayout(FlexTabLayout.FlexItemHolder holder, FlexTabLayout.ItemAnimator.ItemHolderInfo info) {
+        Log.i(TAG, "addToPreLayout index：" + holder.mPosition);
         ViewInfoStore.InfoRecord record = mLayoutHolderMap.get(holder);
         if (record == null) {
             record = ViewInfoStore.InfoRecord.obtain();
@@ -90,6 +96,7 @@ public class ViewInfoStore {
      * @param info   The information to save
      */
     void addToPostLayout(FlexTabLayout.FlexItemHolder holder, FlexTabLayout.ItemAnimator.ItemHolderInfo info) {
+        Log.i(TAG, "addToPostLayout index：" + holder.mPosition);
         ViewInfoStore.InfoRecord record = mLayoutHolderMap.get(holder);
         if (record == null) {
             record = ViewInfoStore.InfoRecord.obtain();

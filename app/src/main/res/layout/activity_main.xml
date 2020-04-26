@@ -9,8 +9,8 @@
 
     <com.example.recyclerviewdemoapp.FlexTabLayout
         android:id="@+id/flexTabLayout"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="320dp"
+        android:layout_height="200dp"
         android:background="@color/colorAccent"
         android:paddingLeft="10dp"
         android:paddingTop="20dp"
@@ -20,6 +20,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:layout_marginTop="20dp">
 
         <Button
@@ -31,12 +32,12 @@
             android:text="新增" />
 
         <Button
-            android:id="@+id/button_remove"
+            android:id="@+id/button_remove_one"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginLeft="20dp"
-            android:text="移除" />
+            android:text="移除一个" />
 
         <Button
             android:id="@+id/button_jump"
@@ -45,6 +46,13 @@
             android:layout_gravity="center"
             android:layout_marginLeft="20dp"
             android:text="跳转到下一个页面" />
+        <Button
+            android:id="@+id/button_remove_all"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginLeft="20dp"
+            android:text="移除全部" />
     </LinearLayout>
 
 </LinearLayout>

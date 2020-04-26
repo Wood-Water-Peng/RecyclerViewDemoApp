@@ -20,10 +20,18 @@
         android:layout_marginTop="30dp"
         android:text="新增" />
     <Button
-        android:id="@+id/button_remove"
+        android:id="@+id/button_remove_one"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginTop="30dp"
-        android:text="移除" />
+        android:text="移除一个" />
+
+    <Button
+        android:id="@+id/button_remove_all"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="30dp"
+        android:text="移除所有" />
 </LinearLayout>

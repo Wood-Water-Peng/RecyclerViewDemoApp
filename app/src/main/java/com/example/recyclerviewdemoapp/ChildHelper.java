@@ -88,10 +88,26 @@ public class ChildHelper {
         final int offset;
         if (index < 0) {
             offset = mCallback.getChildCount();
-        }else {
-            offset=0;
+        } else {
+            offset = 0;
         }
         mCallback.addView(child, offset);
+    }
+
+    boolean removeViewIfHidden(View view) {
+        final int index = mCallback.indexOfChild(view);
+        if (index == -1) {
+            if (unhideViewInternal(view)) {
+                throw new IllegalStateException("view is in hidden list but not in view group");
+            }
+            return true;
+        }
+        if (!unhideViewInternal(view)) {
+            throw new IllegalStateException(
+                    "removed a hidden view but it is not in hidden views list");
+        }
+        mCallback.removeViewAt(index);
+        return false;
     }
 
     void addView(View child, boolean hidden) {
@@ -112,7 +128,7 @@ public class ChildHelper {
         if (index < 0) {
             offset = mCallback.getChildCount();
         } else {
-            offset=index;
+            offset = index;
         }
         if (hidden) {
             hideViewInternal(child);

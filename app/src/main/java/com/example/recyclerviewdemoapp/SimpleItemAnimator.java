@@ -30,4 +30,13 @@ public abstract class SimpleItemAnimator extends FlexTabLayout.ItemAnimator {
 
     public abstract boolean animateRemove(FlexTabLayout.FlexItemHolder holder);
 
+    public final void dispatchRemoveFinished(FlexTabLayout.FlexItemHolder item) {
+        onRemoveFinished(item);
+        dispatchAnimationFinished(item);
+    }
+
+    public void onRemoveFinished(FlexTabLayout.FlexItemHolder item) {
+    }
+
+
 }

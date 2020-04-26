@@ -15,15 +15,22 @@ import android.widget.TextView;
 import com.example.recyclerviewdemoapp.databinding.ActivityMainBinding;
 import com.example.recyclerviewdemoapp.databinding.ActivityRecyclerViewBinding;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class RecyclerViewActivity extends AppCompatActivity {
     private ActivityRecyclerViewBinding viewBinding;
-    private int totalLen = 3;
+    private List<String> testBeanList = new ArrayList<>();
+    private static final int LEN = 3;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         viewBinding = ActivityRecyclerViewBinding.inflate(getLayoutInflater());
         setContentView(viewBinding.getRoot());
+        for (int i = 0; i < LEN; i++) {
+            testBeanList.add(i + "");
+        }
         final RecyclerView.Adapter adapter = new RecyclerView.Adapter() {
             @NonNull
             @Override
@@ -39,7 +46,7 @@ public class RecyclerViewActivity extends AppCompatActivity {
 
             @Override
             public int getItemCount() {
-                return totalLen;
+                return testBeanList.size();
             }
         };
         viewBinding.recycler.setLayoutManager(new LinearLayoutManager(RecyclerViewActivity.this));
@@ -47,15 +54,28 @@ public class RecyclerViewActivity extends AppCompatActivity {
         viewBinding.buttonAdd.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                adapter.notifyItemInserted(totalLen++);
+                testBeanList.add(testBeanList.size()+"");
+                adapter.notifyItemInserted(testBeanList.size());
             }
         });
-        viewBinding.buttonRemove.setOnClickListener(new View.OnClickListener() {
+        viewBinding.buttonRemoveOne.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                adapter.notifyItemRemoved(totalLen--);
+                int index = testBeanList.size() - 1;
+                testBeanList.remove(index);
+                adapter.notifyItemRemoved(index);
             }
         });
+        viewBinding.buttonRemoveAll.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                for (int i = testBeanList.size() - 1; i >= 0; i--) {
+                    testBeanList.remove(i);
+                    adapter.notifyItemRemoved(i);
+                }
+            }
+        });
+        viewBinding.recycler.getItemAnimator().setRemoveDuration(3000);
     }
 
     class ItemHolder extends RecyclerView.ViewHolder {

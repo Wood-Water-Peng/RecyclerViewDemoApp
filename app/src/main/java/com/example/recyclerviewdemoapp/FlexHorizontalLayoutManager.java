@@ -52,6 +52,7 @@ public class FlexHorizontalLayoutManager extends FlexTabLayout.LayoutManager {
         state.curChildIndex = 0;
         state.curRowIndex = 0;
         state.curRowMaxHeight = 0;
+        Log.d(TAG, "onLayoutChildren:------------- adapterCount:"+state.mItemCount);
         mFlexTabLayout.detachAttachedViews();
         for (int i = 0; i < state.mItemCount; i++) {
             View view = mFlexTabLayout.getChildViewManager().getChildAt(i);
