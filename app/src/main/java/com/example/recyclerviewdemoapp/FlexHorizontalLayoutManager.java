@@ -52,9 +52,9 @@ public class FlexHorizontalLayoutManager extends FlexTabLayout.LayoutManager {
         state.curChildIndex = 0;
         state.curRowIndex = 0;
         state.curRowMaxHeight = 0;
-        Log.d(TAG, "onLayoutChildren:------------- adapterCount:"+state.mItemCount);
+        Log.d(TAG, "onLayoutChildren:------------- adapterCount:" + state.getItemCount() + "---isPreLayout:" + state.mInPreLayout + "---preLayoutCount:" + state.mPreviousLayoutItemCount);
         mFlexTabLayout.detachAttachedViews();
-        for (int i = 0; i < state.mItemCount; i++) {
+        for (int i = 0; i < state.getItemCount(); i++) {
             View view = mFlexTabLayout.getChildViewManager().getChildAt(i);
             fillChild(view, state);
         }
@@ -67,6 +67,7 @@ public class FlexHorizontalLayoutManager extends FlexTabLayout.LayoutManager {
      *              2.布局child
      */
     private void fillChild(@NonNull View child, FlexTabLayout.State state) {
+
         measureChildWithMargins(child);
         int left = 0, top = 0, right = 0, bottom = 0;
         int startRow = state.curRowIndex;

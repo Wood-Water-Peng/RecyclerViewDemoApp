@@ -610,8 +610,9 @@ public class FlexTabLayout extends ViewGroup {
         startInterceptRequestLayout();
         mViewInfoStore.clear();
         onEnterLayoutOrScroll();
-        mState.mItemCount = mAdapter.getItemCount();
         processAdapterUpdatesAndSetAnimationFlags();
+        mState.mItemCount = mAdapter.getItemCount();
+        mState.mInPreLayout = mState.mRunPredictiveAnimations;
         mState.mLayoutStep = State.STEP_LAYOUT;
         if (mState.mRunSimpleAnimations) {
             // Step 0: Find out where all non-removed items are, pre-layout
@@ -685,6 +686,7 @@ public class FlexTabLayout extends ViewGroup {
             // Step 4: Process view info lists and trigger animations
             mViewInfoStore.process(mViewInfoProcessCallback);
         }
+        mState.mPreviousLayoutItemCount = mState.mItemCount;
         onExitLayoutOrScroll();
         stopInterceptRequestLayout();
     }
@@ -936,7 +938,7 @@ public class FlexTabLayout extends ViewGroup {
     private class FlexTabViewDataObserver extends AdapterDataObserver {
         @Override
         public void onChanged() {
-            requestLayout();
+//            requestLayout();
         }
 
         @Override
@@ -1016,6 +1018,7 @@ public class FlexTabLayout extends ViewGroup {
         mLayoutOrScrollCounter = 0;
         mIsAttached = true;
         mFirstLayoutComplete = mFirstLayoutComplete && !isLayoutRequested();
+
     }
 
     public static class State {
@@ -1024,6 +1027,7 @@ public class FlexTabLayout extends ViewGroup {
         static final int STEP_ANIMATIONS = 1 << 2;
         public boolean mStructureChanged;
         public boolean mInPreLayout;
+        int mPreviousLayoutItemCount;
 
         boolean mIsMeasuring = false;
 
@@ -1067,6 +1071,16 @@ public class FlexTabLayout extends ViewGroup {
         boolean mRunSimpleAnimations = true;
 
         boolean mRunPredictiveAnimations = false;
+
+        boolean hasMore(RecyclerView.State state,int position) {
+            return position >= 0 && position < state.getItemCount();
+        }
+
+        public int getItemCount() {
+            return mInPreLayout
+                    ? (mPreviousLayoutItemCount)
+                    : mItemCount;
+        }
 
         /**
          * Number of items adapter has.
