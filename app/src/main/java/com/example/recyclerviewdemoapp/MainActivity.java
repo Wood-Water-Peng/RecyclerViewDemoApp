@@ -105,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
         viewBinding.buttonRemoveAll.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                for (int i = 0; i < testBeanList.size(); i++) {
+                for (int i = testBeanList.size() - 1; i >= 0; i--) {
                     testBeanList.remove(i);
                     adapter.notifyItemRemoved(i);
                 }

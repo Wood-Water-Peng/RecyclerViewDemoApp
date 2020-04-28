@@ -51,11 +51,20 @@ public class RecyclerViewActivity extends AppCompatActivity {
         };
         viewBinding.recycler.setLayoutManager(new LinearLayoutManager(RecyclerViewActivity.this));
         viewBinding.recycler.setAdapter(adapter);
-        viewBinding.buttonAdd.setOnClickListener(new View.OnClickListener() {
+        viewBinding.buttonAddOne.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                testBeanList.add(testBeanList.size()+"");
+                testBeanList.add(testBeanList.size() + "");
                 adapter.notifyItemInserted(testBeanList.size());
+            }
+        });
+        viewBinding.buttonAddTwo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                for (int i = 0; i < 2; i++) {
+                    testBeanList.add(testBeanList.size() + "");
+                    adapter.notifyItemInserted(testBeanList.size());
+                }
             }
         });
         viewBinding.buttonRemoveOne.setOnClickListener(new View.OnClickListener() {
@@ -69,7 +78,7 @@ public class RecyclerViewActivity extends AppCompatActivity {
         viewBinding.buttonRemoveAll.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                for (int i = testBeanList.size() - 1; i >= 0; i--) {
+                for (int i = 0; i<testBeanList.size(); i++) {
                     testBeanList.remove(i);
                     adapter.notifyItemRemoved(i);
                 }
