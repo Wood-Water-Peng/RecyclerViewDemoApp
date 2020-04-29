@@ -8,6 +8,8 @@ import android.view.ViewGroup;
 import java.util.ArrayList;
 import java.util.List;
 
+import static com.example.recyclerviewdemoapp.BuildConfig.DEBUG;
+
 /**
  * Helper class to manage children.
  */
@@ -97,17 +99,14 @@ public class ChildHelper {
     boolean removeViewIfHidden(View view) {
         final int index = mCallback.indexOfChild(view);
         if (index == -1) {
-            if (unhideViewInternal(view)) {
-                throw new IllegalStateException("view is in hidden list but not in view group");
-            }
+//            if (unhideViewInternal(view) && DEBUG) {
+//                throw new IllegalStateException("view is in hidden list but not in view group");
+//            }
+            return true;
+        } else {
+            mCallback.removeViewAt(index);
             return true;
         }
-        if (!unhideViewInternal(view)) {
-            throw new IllegalStateException(
-                    "removed a hidden view but it is not in hidden views list");
-        }
-        mCallback.removeViewAt(index);
-        return false;
     }
 
     void addView(View child, boolean hidden) {

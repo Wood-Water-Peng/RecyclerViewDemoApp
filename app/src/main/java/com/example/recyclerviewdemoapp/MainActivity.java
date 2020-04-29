@@ -14,6 +14,7 @@ import android.widget.TextView;
 import com.example.recyclerviewdemoapp.databinding.ActivityMainBinding;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import androidx.annotation.NonNull;
@@ -24,7 +25,7 @@ import androidx.recyclerview.widget.RecyclerView;
 public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     private ActivityMainBinding viewBinding;
-    private List<TestBean> testBeanList = new ArrayList<>();
+    private LinkedList<TestBean> testBeanList = new LinkedList<>();
     private static final int LEN = 2;
     private FlexTabLayout.Adapter adapter;
 
@@ -86,13 +87,24 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        viewBinding.buttonAdd.setOnClickListener(new View.OnClickListener() {
+        viewBinding.buttonAddOne.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 testBeanList.add(new TestBean(false, "" + testBeanList.size()));
                 adapter.notifyItemInserted(testBeanList.size());
             }
         });
+
+        viewBinding.buttonAddTwo.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                for (int i = 0; i < 2; i++) {
+                    testBeanList.add(new TestBean(false, "" + testBeanList.size()));
+                    adapter.notifyItemInserted(testBeanList.size());
+                }
+            }
+        });
+
         viewBinding.buttonRemoveOne.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -105,10 +117,9 @@ public class MainActivity extends AppCompatActivity {
         viewBinding.buttonRemoveAll.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                for (int i = testBeanList.size() - 1; i >= 0; i--) {
-                    testBeanList.remove(i);
-                    adapter.notifyItemRemoved(i);
-                }
+                int size = testBeanList.size();
+                testBeanList.clear();
+                adapter.notifyItemRangeRemoved(0, size);
             }
         });
     }

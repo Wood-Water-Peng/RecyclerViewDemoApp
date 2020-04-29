@@ -116,20 +116,18 @@ public class FlexHorizontalLayoutManager extends FlexTabLayout.LayoutManager {
             state.lastChildMaxHeight = childNeedHeight;
         }
         state.curRowMaxHeight = state.lastChildMaxHeight;
-        if (getHeightMode() == AT_MOST) {
-            if (state.curRowIndex > startRow) {
-                //在之前横向布局的过程中，执行了换行操作
-                startHeight += state.curRowMaxHeight;
-                startHeight += getVerticalSpace();
+        if (state.curRowIndex > startRow) {
+            //在之前横向布局的过程中，执行了换行操作
+            startHeight += state.curRowMaxHeight;
+            startHeight += getVerticalSpace();
+            state.lastChildMaxHeight = childNeedHeight;
+            state.curRowMaxHeight = state.lastChildMaxHeight;
+            state.totalHeight += state.curRowMaxHeight;
+            state.rowMaxHeight.put(state.curRowIndex, startHeight);
+        } else {
+            if (childNeedHeight > state.lastChildMaxHeight) {
+                state.totalHeight += (childNeedHeight - state.lastChildMaxHeight);
                 state.lastChildMaxHeight = childNeedHeight;
-                state.curRowMaxHeight = state.lastChildMaxHeight;
-                state.totalHeight += state.curRowMaxHeight;
-                state.rowMaxHeight.put(state.curRowIndex, startHeight);
-            } else {
-                if (childNeedHeight > state.lastChildMaxHeight) {
-                    state.totalHeight += (childNeedHeight - state.lastChildMaxHeight);
-                    state.lastChildMaxHeight = childNeedHeight;
-                }
             }
         }
         top = startHeight;

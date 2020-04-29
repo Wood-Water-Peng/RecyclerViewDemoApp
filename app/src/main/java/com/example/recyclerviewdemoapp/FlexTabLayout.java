@@ -121,7 +121,7 @@ public class FlexTabLayout extends ViewGroup {
         @Override
         public void onAnimationFinished(FlexItemHolder item) {
             Log.i(TAG, "onAnimationFinished index:" + item.mPosition + "---childCount:" + mChildHelper.getChildCount());
-            removeAnimatingView(item.itemView);
+//            removeAnimatingView(item.itemView);
         }
     }
 
@@ -149,7 +149,7 @@ public class FlexTabLayout extends ViewGroup {
     void animateDisappearance(@NonNull FlexItemHolder itemHolder,
                               @Nullable ItemAnimator.ItemHolderInfo preLayoutInfo, @NonNull ItemAnimator.ItemHolderInfo postLayoutInfo) {
         Log.i(TAG, "animateDisappearance index:" + itemHolder.mPosition);
-        addAnimatingView(itemHolder);
+//        addAnimatingView(itemHolder);
         if (mItemAnimator.animateDisappearance(itemHolder, preLayoutInfo, postLayoutInfo)) {
             postAnimationRunner();
         }
@@ -435,8 +435,8 @@ public class FlexTabLayout extends ViewGroup {
         if (measureSpecModeIsExactly || mAdapter == null) {
             //此时flexTabLayout的宽高都是固定值，与child无关，可以直接退出测量过程
             mLayout.setMeasureSpecs(widthMeasureSpec, heightMeasureSpec);
-            defaultOnMeasure(widthMeasureSpec, heightMeasureSpec);
-            return;
+//            defaultOnMeasure(widthMeasureSpec, heightMeasureSpec);
+//            return;
         }
         if (mState.mLayoutStep == State.STEP_START) {
             dispatchLayoutStep1();
@@ -593,9 +593,14 @@ public class FlexTabLayout extends ViewGroup {
      * This method may process only the pre-layout state of updates or all of them.
      */
     private void processAdapterUpdatesAndSetAnimationFlags() {
+
+        if (mDataSetHasChangedAfterLayout) {
+            mAdapterHelper.reset();
+        }
+        consumePendingUpdateOperations();
         mState.mRunSimpleAnimations = mFirstLayoutComplete
                 && mItemAnimator != null
-                && mDataSetHasChangedAfterLayout;
+                && !mDataSetHasChangedAfterLayout;
 
         mState.mRunPredictiveAnimations = mState.mRunSimpleAnimations;
     }
@@ -785,6 +790,10 @@ public class FlexTabLayout extends ViewGroup {
             mObservable.notifyItemRangeRemoved(position, 1);
         }
 
+        public final void notifyItemRangeRemoved(int positionStart, int itemCount) {
+            mObservable.notifyItemRangeRemoved(positionStart, itemCount);
+        }
+
         public abstract void onItemClicked(View itemView, int position);
 
         @NonNull
@@ -950,9 +959,14 @@ public class FlexTabLayout extends ViewGroup {
 
         @Override
         public void onItemRangeRemoved(int positionStart, int itemCount) {
-            if (mAdapterHelper.onItemRangeRemoved(positionStart, itemCount)) {
-                triggerUpdateProcessor();
+//            if (mAdapterHelper.onItemRangeRemoved(positionStart, itemCount)) {
+//                triggerUpdateProcessor();
+//            }
+            for (int i = 0; i < getChildCount(); i++) {
+                View childAt = getChildAt(i);
+                detachViewFromParent(childAt);
             }
+            requestLayout();
         }
     }
 
@@ -1072,7 +1086,7 @@ public class FlexTabLayout extends ViewGroup {
 
         boolean mRunPredictiveAnimations = false;
 
-        boolean hasMore(RecyclerView.State state,int position) {
+        boolean hasMore(RecyclerView.State state, int position) {
             return position >= 0 && position < state.getItemCount();
         }
 

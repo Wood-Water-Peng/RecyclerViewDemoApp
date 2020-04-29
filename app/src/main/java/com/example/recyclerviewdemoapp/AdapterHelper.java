@@ -3,6 +3,7 @@ package com.example.recyclerviewdemoapp;
 import android.util.Log;
 
 import java.util.ArrayList;
+import java.util.List;
 
 public class AdapterHelper implements OpReorderer.Callback {
     final AdapterHelper.Callback mCallback;
@@ -53,7 +54,7 @@ public class AdapterHelper implements OpReorderer.Callback {
 
     void preProcess() {
         final int count = mPendingUpdates.size();
-        Log.i(TAG, "preProcess count:"+count);
+        Log.i(TAG, "preProcess count:" + count);
         for (int i = 0; i < count; i++) {
             AdapterHelper.UpdateOp op = mPendingUpdates.get(i);
             switch (op.cmd) {
@@ -101,6 +102,17 @@ public class AdapterHelper implements OpReorderer.Callback {
 
     public boolean hasPendingUpdates() {
         return mPendingUpdates.size() > 0;
+    }
+
+    public void reset() {
+        clearList(mPendingUpdates);
+        clearList(mPostponedList);
+    }
+
+    void clearList(List<AdapterHelper.UpdateOp> ops) {
+        if (ops != null) {
+            ops.clear();
+        }
     }
 
     static final class UpdateOp {

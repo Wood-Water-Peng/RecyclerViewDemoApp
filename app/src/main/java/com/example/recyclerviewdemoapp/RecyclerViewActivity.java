@@ -21,7 +21,7 @@ import java.util.List;
 public class RecyclerViewActivity extends AppCompatActivity {
     private ActivityRecyclerViewBinding viewBinding;
     private List<String> testBeanList = new ArrayList<>();
-    private static final int LEN = 3;
+    private static final int LEN = 5;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,10 +78,9 @@ public class RecyclerViewActivity extends AppCompatActivity {
         viewBinding.buttonRemoveAll.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                for (int i = 0; i<testBeanList.size(); i++) {
-                    testBeanList.remove(i);
-                    adapter.notifyItemRemoved(i);
-                }
+                int size = testBeanList.size();
+                testBeanList.clear();
+                adapter.notifyItemRangeRemoved(0, size);
             }
         });
         viewBinding.recycler.getItemAnimator().setRemoveDuration(3000);

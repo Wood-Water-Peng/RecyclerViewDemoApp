@@ -111,17 +111,56 @@ Adapter的帮助类，针对外界对适配器的操作，可以将这些操作�
 
 
 
+Bug分析：
+
+1.adapter中的数据为0，但是UI上却依然显示
+
+2.快速新增和移除，UI显示紊乱
+
+3.FlexTabLayout的children数量为0，但是AdapterHelper中mPendingUpdates的数量却>1，导致后续的insert操作无法调用`triggerUpdateProcessor()`方法。
 
 
 
+**RecyclerView中的一些重要思路：**
+
+> 布局position:
+
+```
+public final int getLayoutPosition() {
+return mPreLayoutPosition == NO_POSITION ? mPosition : mPreLayoutPosition;
+}
+```
+基于对性能和动画效果的考虑，RecyclerView对适配器中的所有更新，打包到下一次layout时去实现。所以可能发生item在适配器中的position和该item在上一次布局中的position不相符的场景。当LinearLayout做计算时需要item的position时，应该调用上面的方法。RecyclerView.LayoutManager，RecyclerView.State和RecyclerView.Recycler中需要position的方法，都应该是item的layout position。
 
 
+> 如果child已经被移除了，那么怎么保证移除动画的进行呢？
 
+按照常规的思路，child被remove之后，是不会被绘制出来的，那么一个5s消失的动画是怎么完成的呢？
 
+1.保证child仍然在RecyclerView中，但是对他们做一个标识。
 
+```
+private void addAnimatingView(ViewHolder viewHolder) {
+	   if (viewHolder.isTmpDetached()) {
+            // re-attach
+            mChildHelper.attachViewToParent(view, -1, view.getLayoutParams(), true);
+        }
+}
+```
+RecyclerView在attach的时候，标记了hidden，然后这个child会被加入到ChildHelper的mHiddenViews中。
 
+ChildHelper的getChildCount()方法会忽略hidden的view
 
+```
+int getChildCount() {
+        return mCallback.getChildCount() - mHiddenViews.size();
+    }
+```
+当动画执行完动画之后，会调用`removeAnimatingView()`
 
+> RecyclerView如何保证addView()却又不requestLayout()呢?
+
+ViewGroup的`attachViewToParent()`，官方的解释是轻量级的方法， 将child添加到viewgroup中，但是不会主动去重绘或者布局。当所有的attach和detach完成之后，可以post一个requestLayout方法，在下一帧执行布局操作。
 
 
 
