@@ -12,13 +12,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
 
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-
-import androidx.annotation.CallSuper;
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -26,7 +19,11 @@ import androidx.annotation.Px;
 import androidx.core.view.ViewCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
-import static android.view.View.MeasureSpec.AT_MOST;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 1.宽高均支持wrap_content
@@ -45,7 +42,6 @@ public class FlexTabLayout extends ViewGroup {
     public static final String TAG = "FlexTabLayout";
     public static final int NO_POSITION = -1;
     public static final long NO_ID = -1;
-    final ChildViewManager childViewManager = new ChildViewManager();
     FlexTabLayout.Adapter mAdapter;
     private final FlexTabViewDataObserver mObserver = new FlexTabViewDataObserver();
     //横向间距，不包括头尾
@@ -59,7 +55,7 @@ public class FlexTabLayout extends ViewGroup {
     private ItemAnimator.ItemAnimatorListener mItemAnimatorListener =
             new ItemAnimatorRestoreListener();
     LayoutManager mLayout;
-
+    final FlexHolderRecycler mRecycler = new FlexHolderRecycler();
 
     /**
      * Handles adapter updates
@@ -72,9 +68,6 @@ public class FlexTabLayout extends ViewGroup {
         return mAdapter;
     }
 
-    public ChildViewManager getChildViewManager() {
-        return childViewManager;
-    }
 
     ItemAnimator mItemAnimator = new DefaultItemAnimator();
 
@@ -207,7 +200,9 @@ public class FlexTabLayout extends ViewGroup {
 
                 @Override
                 public void processPersistent(FlexItemHolder viewHolder, ItemAnimator.ItemHolderInfo preInfo, ItemAnimator.ItemHolderInfo postInfo) {
-
+                    if (mItemAnimator.animatePersistence(viewHolder, preInfo, postInfo)) {
+                        postAnimationRunner();
+                    }
                 }
             };
 
@@ -319,9 +314,11 @@ public class FlexTabLayout extends ViewGroup {
         final int childCount = mChildHelper.getUnfilteredChildCount();
         for (int i = 0; i < childCount; i++) {
             final FlexTabLayout.FlexItemHolder holder = getChildViewHolderInt(mChildHelper.getUnfilteredChildAt(i));
+            Log.i(TAG, "offsetPositionRecordsForInsert startPosition:" + holder.mPosition);
             if (holder != null && holder.mPosition >= positionStart) {
                 holder.offsetPosition(itemCount, false);
             }
+            Log.i(TAG, "offsetPositionRecordsForInsert endPosition:" + holder.mPosition);
         }
 
         requestLayout();
@@ -457,50 +454,6 @@ public class FlexTabLayout extends ViewGroup {
                 view.getBottom() + lp.bottomMargin);
     }
 
-    public final class ChildViewManager {
-        private Map<Integer, View> childList = new HashMap<>();
-
-        public View getChildAt(final int position) {
-            if (mAdapter == null) {
-                throw new IllegalStateException("Adapter can not be null");
-            }
-            View child = childList.get(position);
-            if (child == null) {
-                child = createNewView(position);
-                childList.put(position, child);
-            }
-            child.setOnClickListener(new View.OnClickListener() {
-
-                @Override
-                public void onClick(View v) {
-                    mAdapter.onItemClicked(childList.get(position), position);
-                }
-            });
-            return child;
-        }
-
-        private View createNewView(final int position) {
-            FlexItemHolder holder = mAdapter.onCreateItemHolder(FlexTabLayout.this, position);
-            final View child = holder.itemView;
-            final ViewGroup.LayoutParams lp = child.getLayoutParams();
-            final LayoutParams layoutParams;
-            if (lp == null) {
-                layoutParams = (LayoutParams) generateDefaultLayoutParams();
-                child.setLayoutParams(layoutParams);
-            } else {
-                Log.i(TAG, "createNewView  lp:" + lp);
-                layoutParams = (LayoutParams) generateLayoutParams(lp);
-                child.setLayoutParams(layoutParams);
-            }
-            layoutParams.mViewHolder = holder;
-            layoutParams.mViewHolder.mPosition = position;
-            return child;
-        }
-
-        public void clear() {
-            childList.clear();
-        }
-    }
 
     @Override
     protected ViewGroup.LayoutParams generateDefaultLayoutParams() {
@@ -584,7 +537,7 @@ public class FlexTabLayout extends ViewGroup {
      * Cached items must be discarded when setting this to true, so that the cache may be freely
      * used by prefetching until the next layout occurs.
      */
-    boolean mDataSetHasChangedAfterLayout = true;
+    boolean mDataSetHasChangedAfterLayout = false;
 
     /**
      * Consumes adapter updates and calculates which type of animations we want to run.
@@ -634,9 +587,14 @@ public class FlexTabLayout extends ViewGroup {
 
         if (mState.mRunPredictiveAnimations) {
             mLayout.onLayoutChildren(this, mState);
+            clearOldPositions();
         }
         onExitLayoutOrScroll();
         stopInterceptRequestLayout();
+    }
+
+    private void clearOldPositions() {
+        mRecycler.clearOldPositions();
     }
 
     /**
@@ -799,6 +757,9 @@ public class FlexTabLayout extends ViewGroup {
         @NonNull
         public abstract FH onCreateItemHolder(@NonNull ViewGroup parent, int position);
 
+        @NonNull
+        public abstract void onBindItemHolder(@NonNull FH holder, int position);
+
         public abstract int getItemCount();
 
         public void registerAdapterDataObserver(FlexTabViewDataObserver observer) {
@@ -858,6 +819,10 @@ public class FlexTabLayout extends ViewGroup {
             return (mFlags & FLAG_TMP_DETACHED) != 0;
         }
 
+        /**
+         * @param offset
+         * @param applyToPreLayout 此次offset的变动是否影响pre-layout阶段holder的参数
+         */
         void offsetPosition(int offset, boolean applyToPreLayout) {
             if (mOldPosition == NO_POSITION) {
                 mOldPosition = mPosition;
@@ -872,6 +837,20 @@ public class FlexTabLayout extends ViewGroup {
             if (itemView.getLayoutParams() != null) {
                 ((FlexTabLayout.LayoutParams) itemView.getLayoutParams()).mInsetsDirty = true;
             }
+        }
+
+        FlexHolderRecycler mScrapContainer = null;
+
+        boolean isScrap() {
+            return mScrapContainer != null;
+        }
+
+        void unScrap() {
+            mScrapContainer.unscrapView(this);
+        }
+
+        void setScrapContainer(FlexHolderRecycler recycler) {
+            mScrapContainer = recycler;
         }
 
         void flagRemovedAndOffsetPosition(int mNewPosition, int offset, boolean applyToPreLayout) {
@@ -890,6 +869,15 @@ public class FlexTabLayout extends ViewGroup {
 
         public void clearTmpDetachFlag() {
             mFlags = mFlags & ~FLAG_TMP_DETACHED;
+        }
+
+        public int getLayoutPosition() {
+            return mPreLayoutPosition == NO_POSITION ? mPosition : mPreLayoutPosition;
+        }
+
+        public void clearOldPosition() {
+            mOldPosition = NO_POSITION;
+            mPreLayoutPosition = NO_POSITION;
         }
     }
 
@@ -948,6 +936,11 @@ public class FlexTabLayout extends ViewGroup {
         @Override
         public void onChanged() {
 //            requestLayout();
+//            mState.mStructureChanged = true;
+//            mDataSetHasChangedAfterLayout = true;
+//            if (!mAdapterHelper.hasPendingUpdates()) {
+//                requestLayout();
+//            }
         }
 
         @Override
@@ -959,14 +952,9 @@ public class FlexTabLayout extends ViewGroup {
 
         @Override
         public void onItemRangeRemoved(int positionStart, int itemCount) {
-//            if (mAdapterHelper.onItemRangeRemoved(positionStart, itemCount)) {
-//                triggerUpdateProcessor();
-//            }
-            for (int i = 0; i < getChildCount(); i++) {
-                View childAt = getChildAt(i);
-                detachViewFromParent(childAt);
+            if (mAdapterHelper.onItemRangeRemoved(positionStart, itemCount)) {
+                triggerUpdateProcessor();
             }
-            requestLayout();
         }
     }
 
@@ -1152,6 +1140,7 @@ public class FlexTabLayout extends ViewGroup {
                 new ArrayList<ItemAnimator.ItemAnimatorFinishedListener>();
         private long mAddDuration = 1200;
         private long mRemoveDuration = 1200;
+        private long mMoveDuration = 1200;
 
         void setListener(ItemAnimatorListener listener) {
             mListener = listener;
@@ -1175,6 +1164,10 @@ public class FlexTabLayout extends ViewGroup {
         public abstract boolean animateAppearance(@NonNull FlexItemHolder viewHolder,
                                                   @Nullable ItemHolderInfo preLayoutInfo, @NonNull ItemHolderInfo postLayoutInfo);
 
+        public abstract boolean animatePersistence(@NonNull FlexItemHolder viewHolder,
+                                                   @NonNull ItemHolderInfo preLayoutInfo, @NonNull ItemHolderInfo postLayoutInfo);
+
+
         /**
          * Gets the current duration for which all remove animations will run.
          *
@@ -1191,6 +1184,10 @@ public class FlexTabLayout extends ViewGroup {
          */
         public long getAddDuration() {
             return mAddDuration;
+        }
+
+        public long getMoveDuration() {
+            return mMoveDuration;
         }
 
         public abstract void runPendingAnimations();
@@ -1509,6 +1506,82 @@ public class FlexTabLayout extends ViewGroup {
         public abstract int getMeasureHeightFromChildren(FlexTabLayout.State state, int widthSpec, int heightSpec);
     }
 
+
+    public final class FlexHolderRecycler {
+        final ArrayList<FlexItemHolder> mAttachedScrap = new ArrayList<>();
+
+        @Nullable
+        FlexItemHolder tryGetViewHolderForPosition(final int position) {
+            FlexItemHolder holder = getHolderFromScrap(position);
+            if (holder == null) {
+                holder = createNewHolder(position);
+                scrapView(holder);
+                holder.setScrapContainer(mRecycler);
+            } else {
+//                holder.unScrap();
+//                mRecycler.unscrapView(holder);
+            }
+            if (!mState.mInPreLayout) {
+                mAdapter.onBindItemHolder(((LayoutParams) holder.itemView.getLayoutParams()).mViewHolder, position);
+            }
+            final FlexItemHolder finalHolder = holder;
+            holder.itemView.setOnClickListener(new View.OnClickListener() {
+
+                @Override
+                public void onClick(View v) {
+                    mAdapter.onItemClicked(finalHolder.itemView, position);
+                }
+            });
+            return holder;
+        }
+
+        void scrapView(FlexItemHolder holder) {
+            mAttachedScrap.add(holder);
+        }
+
+        void unscrapView(FlexItemHolder holder) {
+            mAttachedScrap.remove(holder);
+        }
+
+        private FlexItemHolder getHolderFromScrap(int position) {
+            boolean mInPreLayout = mState.mInPreLayout;
+            final int scrapCount = mAttachedScrap.size();
+            for (int i = 0; i < scrapCount; i++) {
+                final FlexItemHolder holder = mAttachedScrap.get(i);
+                int layoutPosition = holder.getLayoutPosition();
+                if (layoutPosition == position) {
+                    Log.i(TAG, "getHolderFromScrap  position:" + position);
+                    return holder;
+                }
+            }
+            return null;
+        }
+
+        @NonNull
+        private FlexItemHolder createNewHolder(int position) {
+            FlexItemHolder holder = mAdapter.onCreateItemHolder(FlexTabLayout.this, position);
+            holder.mPosition = position;
+            final View child = holder.itemView;
+            final ViewGroup.LayoutParams lp = child.getLayoutParams();
+            final LayoutParams layoutParams;
+            if (lp == null) {
+                layoutParams = (LayoutParams) generateDefaultLayoutParams();
+                child.setLayoutParams(layoutParams);
+            } else {
+                layoutParams = (LayoutParams) generateLayoutParams(lp);
+                child.setLayoutParams(layoutParams);
+            }
+            layoutParams.mViewHolder = holder;
+            Log.i(TAG, "createNewHolder  position:" + position);
+            return holder;
+        }
+
+        public void clearOldPositions() {
+            for (int i = 0; i < mAttachedScrap.size(); i++) {
+                mAttachedScrap.get(i).clearOldPosition();
+            }
+        }
+    }
 
     @Override
     public void draw(Canvas canvas) {

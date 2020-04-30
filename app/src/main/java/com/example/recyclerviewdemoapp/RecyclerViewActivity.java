@@ -21,7 +21,7 @@ import java.util.List;
 public class RecyclerViewActivity extends AppCompatActivity {
     private ActivityRecyclerViewBinding viewBinding;
     private List<String> testBeanList = new ArrayList<>();
-    private static final int LEN = 5;
+    private static final int LEN = 2;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,6 +56,14 @@ public class RecyclerViewActivity extends AppCompatActivity {
             public void onClick(View v) {
                 testBeanList.add(testBeanList.size() + "");
                 adapter.notifyItemInserted(testBeanList.size());
+            }
+        });
+
+        viewBinding.buttonInsertOne.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                testBeanList.add(testBeanList.size() + "");
+                adapter.notifyItemInserted(1);
             }
         });
         viewBinding.buttonAddTwo.setOnClickListener(new View.OnClickListener() {

@@ -34,6 +34,14 @@
             android:text="新增一个" />
 
         <Button
+            android:id="@+id/button_insert_one"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginLeft="20dp"
+            android:text="插入一个" />
+
+        <Button
             android:id="@+id/button_add_two"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

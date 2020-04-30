@@ -16,6 +16,7 @@ import com.example.recyclerviewdemoapp.databinding.ActivityMainBinding;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Random;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -62,15 +63,21 @@ public class MainActivity extends AppCompatActivity {
 //                    return new ItemHolder(new PlusButtonItemView(parent.getContext()));
 //                }
                 final NormalItemView view = new NormalItemView(parent.getContext());
-                TextView textView = view.findViewById(R.id.normal_item_tv);
-                textView.setText(testBeanList.get(position).getText());
-                view.setSelected(testBeanList.get(position).isSelected());
+
                 Log.i(TAG, "onCreateItemHolder position:" + position);
 //                if (position == 2) {
 //                    view.setVisibility(View.GONE);
 //                }
                 return new ItemHolder(view);
+            }
 
+            @NonNull
+            @Override
+            public void onBindItemHolder(@NonNull FlexTabLayout.FlexItemHolder holder, int position) {
+                NormalItemView normalItemView = (NormalItemView) holder.itemView;
+                TextView textView = normalItemView.findViewById(R.id.normal_item_tv);
+                textView.setText(testBeanList.get(position).getText());
+                normalItemView.setSelected(testBeanList.get(position).isSelected());
             }
 
             @Override
@@ -92,6 +99,17 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
                 testBeanList.add(new TestBean(false, "" + testBeanList.size()));
                 adapter.notifyItemInserted(testBeanList.size());
+            }
+        });
+
+        viewBinding.buttonInsertOne.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Random random = new Random();
+//                int nextInt = random.nextInt(testBeanList.size() - 1);
+                int nextInt = 1;
+                testBeanList.add(nextInt, new TestBean(true, "插入的" + nextInt));
+                adapter.notifyItemInserted(nextInt);
             }
         });
 

@@ -1,5 +1,7 @@
 package com.example.recyclerviewdemoapp;
 
+import android.util.Log;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
@@ -21,6 +23,15 @@ public abstract class SimpleItemAnimator extends FlexTabLayout.ItemAnimator {
         }
     }
 
+    @Override
+    public boolean animatePersistence(@NonNull FlexTabLayout.FlexItemHolder viewHolder, @NonNull ItemHolderInfo preInfo, @NonNull ItemHolderInfo postInfo) {
+        if (preInfo.left != postInfo.left || preInfo.top != postInfo.top) {
+            return animateMove(viewHolder,
+                    preInfo.left, preInfo.top, postInfo.left, postInfo.top);
+        }
+        return false;
+    }
+
     /**
      * @param holder The item that is being added.
      * @return true if a later call to {@link #runPendingAnimations()} is requested,
@@ -29,6 +40,9 @@ public abstract class SimpleItemAnimator extends FlexTabLayout.ItemAnimator {
     public abstract boolean animateAdd(FlexTabLayout.FlexItemHolder holder);
 
     public abstract boolean animateRemove(FlexTabLayout.FlexItemHolder holder);
+
+    public abstract boolean animateMove(FlexTabLayout.FlexItemHolder holder, int fromX, int fromY,
+                                        int toX, int toY);
 
     public final void dispatchRemoveFinished(FlexTabLayout.FlexItemHolder item) {
         onRemoveFinished(item);

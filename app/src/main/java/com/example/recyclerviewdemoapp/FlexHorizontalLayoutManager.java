@@ -5,7 +5,6 @@ import android.view.View;
 import android.view.ViewGroup;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.RecyclerView;
 
 import static android.view.View.MeasureSpec.AT_MOST;
 
@@ -54,8 +53,9 @@ public class FlexHorizontalLayoutManager extends FlexTabLayout.LayoutManager {
         state.curRowMaxHeight = 0;
         Log.d(TAG, "onLayoutChildren:------------- adapterCount:" + state.getItemCount() + "---isPreLayout:" + state.mInPreLayout + "---preLayoutCount:" + state.mPreviousLayoutItemCount);
         mFlexTabLayout.detachAttachedViews();
+        //适配器item的数量
         for (int i = 0; i < state.getItemCount(); i++) {
-            View view = mFlexTabLayout.getChildViewManager().getChildAt(i);
+            View view = mFlexTabLayout.mRecycler.tryGetViewHolderForPosition(i).itemView;
             fillChild(view, state);
         }
     }

@@ -35,12 +35,15 @@ public class ViewInfoStore {
             final ViewInfoStore.InfoRecord record = mLayoutHolderMap.removeAt(index);
             if ((record.flags & InfoRecord.FLAG_APPEAR_PRE_AND_POST) == InfoRecord.FLAG_APPEAR_PRE_AND_POST) {
                 // Appeared in the layout but not in the adapter (e.g. entered the viewport)
+                Log.i(TAG,"process processAppeared index:"+viewHolder.mPosition);
                 callback.processAppeared(viewHolder, record.preInfo, record.postInfo);
             } else if ((record.flags & InfoRecord.FLAG_PRE_AND_POST) == InfoRecord.FLAG_PRE_AND_POST) {
                 // Persistent in both passes. Animate persistence
+                Log.i(TAG,"process processPersistent index:"+viewHolder.mPosition);
                 callback.processPersistent(viewHolder, record.preInfo, record.postInfo);
             } else if ((record.flags & FLAG_POST) != 0) {
                 // Was not in pre-layout, been added to post layout
+                Log.i(TAG,"process processAppeared index:"+viewHolder.mPosition);
                 callback.processAppeared(viewHolder, record.preInfo, record.postInfo);
             } else if ((ViewInfoStore.InfoRecord.FLAG_PRE) != 0) {
                 // Was in pre-layout, never been added to post layout
