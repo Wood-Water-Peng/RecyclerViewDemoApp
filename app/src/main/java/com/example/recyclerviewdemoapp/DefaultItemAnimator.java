@@ -199,7 +199,8 @@ public class DefaultItemAnimator extends SimpleItemAnimator {
             } else {
                 mover.run();
             }
-        } else if (additionsPending) {
+        }
+        if (additionsPending) {
             final ArrayList<FlexTabLayout.FlexItemHolder> additions = new ArrayList<>();
             additions.addAll(mPendingAdditions);
             mAdditionsList.add(additions);

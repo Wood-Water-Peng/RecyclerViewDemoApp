@@ -104,9 +104,17 @@ public class ChildHelper {
 //            }
             return true;
         } else {
-            mCallback.removeViewAt(index);
+            if (isHidden(view)) {
+                mHiddenViews.remove(view);
+                mCallback.removeViewAt(index);
+
+            }
             return true;
         }
+    }
+
+    boolean isHidden(View view) {
+        return mHiddenViews.contains(view);
     }
 
     void addView(View child, boolean hidden) {

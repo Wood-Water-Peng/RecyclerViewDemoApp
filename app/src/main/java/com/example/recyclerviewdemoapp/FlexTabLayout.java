@@ -114,7 +114,7 @@ public class FlexTabLayout extends ViewGroup {
         @Override
         public void onAnimationFinished(FlexItemHolder item) {
             Log.i(TAG, "onAnimationFinished index:" + item.mPosition + "---childCount:" + mChildHelper.getChildCount());
-//            removeAnimatingView(item.itemView);
+            removeAnimatingView(item.itemView);
         }
     }
 
@@ -363,11 +363,16 @@ public class FlexTabLayout extends ViewGroup {
         startInterceptRequestLayout();
         final boolean removed = mChildHelper.removeViewIfHidden(view);
         if (removed) {
-            return true;
+            FlexItemHolder holder = getChildViewHolderInt(view);
+            mRecycler.unscrapView(holder);
         }
         // only clear request eaten flag if we removed the view.
         stopInterceptRequestLayout();
-        return false;
+        for (int i = 0; i < mRecycler.mAttachedScrap.size(); i++) {
+
+            Log.i(TAG, "removeAnimatingView 缓存池剩下的holder:" + mRecycler.mAttachedScrap.get(i).toString());
+        }
+        return true;
     }
 
     private void initAdapterManager() {
@@ -586,7 +591,10 @@ public class FlexTabLayout extends ViewGroup {
         }
 
         if (mState.mRunPredictiveAnimations) {
+            saveOldPositions();
             mLayout.onLayoutChildren(this, mState);
+            clearOldPositions();
+        } else {
             clearOldPositions();
         }
         onExitLayoutOrScroll();
@@ -595,6 +603,11 @@ public class FlexTabLayout extends ViewGroup {
 
     private void clearOldPositions() {
         mRecycler.clearOldPositions();
+    }
+
+
+    void saveOldPositions() {
+        mRecycler.saveOldPositions();
     }
 
     /**
@@ -878,6 +891,21 @@ public class FlexTabLayout extends ViewGroup {
         public void clearOldPosition() {
             mOldPosition = NO_POSITION;
             mPreLayoutPosition = NO_POSITION;
+        }
+
+        void saveOldPosition() {
+            if (mOldPosition == NO_POSITION) {
+                mOldPosition = mPosition;
+            }
+        }
+
+        @NonNull
+        @Override
+        public String toString() {
+            final StringBuilder sb = new StringBuilder("{"
+                    + Integer.toHexString(hashCode()) + " position=" + mPosition + " id=" + mItemId
+                    + ", oldPos=" + mOldPosition + ", prePos=" + mPreLayoutPosition);
+            return sb.toString();
         }
     }
 
@@ -1521,6 +1549,9 @@ public class FlexTabLayout extends ViewGroup {
 //                holder.unScrap();
 //                mRecycler.unscrapView(holder);
             }
+            if (mState.mInPreLayout) {
+                holder.mPreLayoutPosition = position;
+            }
             if (!mState.mInPreLayout) {
                 mAdapter.onBindItemHolder(((LayoutParams) holder.itemView.getLayoutParams()).mViewHolder, position);
             }
@@ -1557,6 +1588,7 @@ public class FlexTabLayout extends ViewGroup {
             return null;
         }
 
+
         @NonNull
         private FlexItemHolder createNewHolder(int position) {
             FlexItemHolder holder = mAdapter.onCreateItemHolder(FlexTabLayout.this, position);
@@ -1579,6 +1611,12 @@ public class FlexTabLayout extends ViewGroup {
         public void clearOldPositions() {
             for (int i = 0; i < mAttachedScrap.size(); i++) {
                 mAttachedScrap.get(i).clearOldPosition();
+            }
+        }
+
+        public void saveOldPositions() {
+            for (int i = 0; i < mAttachedScrap.size(); i++) {
+                mAttachedScrap.get(i).saveOldPosition();
             }
         }
     }
